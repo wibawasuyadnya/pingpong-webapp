@@ -19,3 +19,7 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+div#loom-sdk-record-overlay-shadow-root-id {
+  display: block !important;
+}

@@ -1,6 +1,10 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import type { Metadata } from "next";
+import FlyonuiScript from "./flyonui-script";
+import { Providers } from "@/redux/provider";
+import { Geist, Geist_Mono } from "next/font/google";
+import ThemeWrapper from "@/components/Layout-Components/ThemeWrapper";
+import ThemeInitializer from "@/components/Layout-Components/ThemeInitializer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,10 +28,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <meta name="referrer" content="origin" />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <Providers>
+          <ThemeInitializer />
+          <ThemeWrapper>
+            <div>
+              {children}
+            </div>
+            <FlyonuiScript />
+          </ThemeWrapper>
+        </Providers>
       </body>
     </html>
   );
