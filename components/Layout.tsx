@@ -1,26 +1,27 @@
 import React, { Fragment, ReactNode } from "react";
 import Header from "./Layout-Components/Header";
 import Drawer from "./Layout-Components/Drawer";
+import Image from "next/image";
 
 interface ComponentProps {
     children: ReactNode;
-};
+    type?: string;
+}
 
-
-export default async function Layout({ children }: ComponentProps) {
+export default async function Layout({ children, type }: ComponentProps) {
     return (
-        <Fragment>
-            <div className="z-10 w-full">
-                <Header />
+        <div className="relative bg-[url('/assets/bg-pingpong.webp')] h-fit overflow-hidden">
+            <div className="relative z-10 w-full h-25">
+                <Header type={type} />
             </div>
-            <div className="w-full flex flex-row h-screen">
-                <div className="relative w-[250px]">
-                    <Drawer />
+            <div className="relative w-full max-h-[650px] flex flex-row overflow-hidden">
+                <div className="w-[250px]">
+                    <Drawer type={type} />
                 </div>
-                <div className={`m-0 px-10 py-8 bg-[#f8f8f8] w-full`}>
+                <div className="m-0 w-full">
                     <main>{children}</main>
                 </div>
             </div>
-        </Fragment>
+        </div>
     );
 }
