@@ -4,8 +4,10 @@ import Section from "./_components/Section";
 
 export default async function Login() {
     return (
-        <Layout type="login">
-            <Section />
-        </Layout>
+        <div className="bg-[url('/assets/bg-pingpong.webp')] h-screen overflow-hidden">
+            <Layout type="login">
+                <Section />
+            </Layout>
+        </div>
     );
 }

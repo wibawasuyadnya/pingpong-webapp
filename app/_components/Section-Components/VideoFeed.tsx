@@ -1,14 +1,23 @@
 'use client';
 import React, { useRef, useEffect, useState } from 'react';
 
-interface VideoFeedProps {
-    videoSources: string[];
+interface VideoSource {
+    source: string;
+    orientation: string;
 }
 
-export default function VideoFeed({ videoSources }: VideoFeedProps) {
+interface VideoFeedProps {
+    sources: VideoSource[];
+}
+
+export default function VideoFeed({ sources }: VideoFeedProps) {
+    // Reference to the scroll container
+    const containerRef = useRef<HTMLDivElement>(null);
+    // References to each video element
     const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
     const [isSoundEnabled, setIsSoundEnabled] = useState(false);
 
+    // Intersection Observer to auto-play/pause videos based on visibility
     useEffect(() => {
         const options = {
             rootMargin: '0px',
@@ -17,14 +26,11 @@ export default function VideoFeed({ videoSources }: VideoFeedProps) {
 
         const handleIntersection = (entries: IntersectionObserverEntry[]) => {
             entries.forEach((entry) => {
+                const video = entry.target as HTMLVideoElement;
                 if (entry.isIntersecting) {
-                    const video = entry.target as HTMLVideoElement;
                     video.play();
-
-                    // Mute/unmute based on sound state
                     video.muted = !isSoundEnabled;
                 } else {
-                    const video = entry.target as HTMLVideoElement;
                     video.pause();
                 }
             });
@@ -32,61 +38,115 @@ export default function VideoFeed({ videoSources }: VideoFeedProps) {
 
         const observer = new IntersectionObserver(handleIntersection, options);
 
-        videoRefs.current.forEach((videoRef) => {
-            if (videoRef) {
-                observer.observe(videoRef);
+        videoRefs.current.forEach((video) => {
+            if (video) {
+                observer.observe(video);
             }
         });
 
         return () => {
-            videoRefs.current.forEach((videoRef) => {
-                if (videoRef) {
-                    observer.unobserve(videoRef);
+            videoRefs.current.forEach((video) => {
+                if (video) {
+                    observer.unobserve(video);
                 }
             });
         };
     }, [isSoundEnabled]);
 
-    const toggleSound = () => {
-        setIsSoundEnabled(!isSoundEnabled);
+    // Custom onScroll handler to auto-snap to the nearest video after scrolling stops.
+    useEffect(() => {
+        let timeoutId: NodeJS.Timeout;
+        const container = containerRef.current;
+        if (!container) return;
 
-        // Update muted state for all videos
-        videoRefs.current.forEach((videoRef) => {
-            if (videoRef) {
-                videoRef.muted = !isSoundEnabled;
+        const handleScroll = () => {
+            clearTimeout(timeoutId);
+            // Wait for scroll to stop (100ms debounce)
+            timeoutId = setTimeout(() => {
+                const containerTop = container.getBoundingClientRect().top;
+                let closestIndex = 0;
+                let minDistance = Infinity;
+
+                videoRefs.current.forEach((video, index) => {
+                    if (video) {
+                        const rect = video.getBoundingClientRect();
+                        const distance = Math.abs(rect.top - containerTop);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestIndex = index;
+                        }
+                    }
+                });
+
+                // Smoothly scroll the closest video into view
+                videoRefs.current[closestIndex]?.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        };
+
+        container.addEventListener('scroll', handleScroll);
+        return () => {
+            container.removeEventListener('scroll', handleScroll);
+            clearTimeout(timeoutId);
+        };
+    }, []);
+
+    // Toggle sound state (and update each video's muted property)
+    const toggleSound = () => {
+        setIsSoundEnabled((prev) => !prev);
+        videoRefs.current.forEach((video) => {
+            if (video) {
+                video.muted = isSoundEnabled; // Note: uses previous state here.
             }
         });
     };
 
     return (
-        <div className="max-h-[600px] overflow-y-scroll snap-y snap-mandatory no-scrollbar">
-            {videoSources.map((src, index) => (
-                <div
-                    key={index}
-                    className="relative h-fit w-full flex items-center justify-center snap-start"
-                >
-                    <div className="relative w-full max-w-full h-fit mt-4 flex items-center justify-center">
-                        <video
-                            ref={(el) => {
-                                videoRefs.current[index] = el;
-                            }}
-                            src={src}
-                            loop
-                            muted={!isSoundEnabled}
-                            playsInline
-                            className="max-w-full max-h-[600px] object-contain rounded-lg"
-                        />
+        <div
+            ref={containerRef}
+            className="h-[600px] overflow-y-scroll snap-y snap-mandatory no-scrollbar"
+            style={{ overscrollBehavior: 'contain' }} // Prevents over-scrolling momentum
+        >
+            {sources.map((video, index) => {
+                // Set the video width based on orientation.
+                const videoWidthClass =
+                    video.orientation === 'portrait' ? 'w-[300px]' : 'w-[800px]';
+                // Add extra padding for landscape videos.
+                const containerPaddingClass =
+                    video.orientation === 'landscape' ? 'p-4' : '';
 
-                        {/* Sound Toggle Button */}
-                        {/* <button
-                            onClick={toggleSound}
-                            className="absolute top-0 -right-1 z-10 bg-black/50 rounded-full p-2 text-white"
+                return (
+                    <div
+                        key={index}
+                        className="relative h-[600px] w-full flex items-center justify-center snap-start"
+                        style={{ scrollSnapStop: 'always' }}
+                    >
+                        <div
+                            className={`relative flex items-center justify-center ${containerPaddingClass}`}
                         >
-                            {isSoundEnabled ? <Volume2 /> : <VolumeX />}
-                        </button> */}
+                            <video
+                                ref={(el) => {
+                                    videoRefs.current[index] = el;
+                                }}
+                                src={video.source}
+                                loop
+                                muted={!isSoundEnabled}
+                                playsInline
+                                className={`object-cover rounded-lg ${videoWidthClass}`}
+                                style={{ maxHeight: '100%', maxWidth: '100%' }}
+                            />
+                            {/*
+              // Uncomment the button below to enable sound toggling
+              <button
+                onClick={toggleSound}
+                className="absolute top-0 -right-1 z-10 bg-black/50 rounded-full p-2 text-white"
+              >
+                {isSoundEnabled ? <Volume2 /> : <VolumeX />}
+              </button>
+              */}
+                        </div>
                     </div>
-                </div>
-            ))}
+                );
+            })}
         </div>
     );
 }

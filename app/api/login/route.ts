@@ -14,7 +14,7 @@ export async function POST(request: Request) {
     response.cookies.set("isAuthenticated", "true", {
       path: "/",
       httpOnly: true,
-      maxAge: 60 * 60 * 24, // 1 day
+      maxAge: 60 * 60 * 24,
     });
     return response;
   }

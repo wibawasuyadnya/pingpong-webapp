@@ -1,11 +1,13 @@
-"use server"
+"use server";
 import Layout from "@/components/Layout";
 import Section from "./_components/Section";
 
 export default async function Upload() {
   return (
-    <Layout>
-      <Section />
-    </Layout>
+    <div className="bg-[url('/assets/bg-pingpong.webp')]">
+      <Layout>
+        <Section />
+      </Layout>
+    </div>
   );
 }

@@ -6,7 +6,7 @@ export default function Drawer({ type }: { type?: string }) {
     const pathname = usePathname();
     const isUploadPage = pathname === '/upload';
     return (
-        <div className="h-screen relative">
+        <div className="h-full relative">
             <aside id="default-sidebar" className="overlay max-w-64 sm:absolute sm:flex sm:translate-x-0 w-full bg-transparent" role="dialog" tabIndex={-1} >
                 <div className="drawer-body px-2 pt-4">
                     {
