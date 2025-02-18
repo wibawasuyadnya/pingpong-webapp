@@ -1,12 +1,12 @@
 "use client";
 import React, {
-  useImperativeHandle,
   useRef,
   useState,
   forwardRef,
-  useEffect,
+  useImperativeHandle,
 } from "react";
 import Webcam from "react-webcam";
+import Draggable from "react-draggable";
 
 export interface RecorderSectionHandle {
   startRecording: () => Promise<void>;
@@ -21,94 +21,33 @@ interface RecorderSectionProps {
 
 const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
   ({ mode }, ref) => {
-    const [isRecording, setIsRecording] = useState(false);
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const [isRecording, setIsRecording] = useState(false);
+    const [showWebcam, setShowWebcam] = useState(false);
     const recordedChunksRef = useRef<Blob[]>([]);
 
-    // For screen mode, use hidden video elements and a canvas.
-    const screenVideoRef = useRef<HTMLVideoElement>(null);
-    const overlayCameraVideoRef = useRef<HTMLVideoElement>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-
-    // For camera-only mode, use react-webcam.
+    // For camera-only mode.
     const webcamRef = useRef<Webcam>(null);
+    // Create a ref for the draggable container.
+    const draggableRef = useRef<HTMLDivElement>(null);
 
     const startRecording = async () => {
       if (mode === "screen") {
-        // --- Screen Recording Mode ---
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true,
-        });
-        const cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" },
-          audio: false,
-        });
-
-        if (screenVideoRef.current) {
-          screenVideoRef.current.srcObject = screenStream;
-          await screenVideoRef.current.play();
-        }
-        if (overlayCameraVideoRef.current) {
-          overlayCameraVideoRef.current.srcObject = cameraStream;
-          await overlayCameraVideoRef.current.play();
-        }
-
-        const canvas = canvasRef.current;
-        if (!canvas || !screenVideoRef.current || !overlayCameraVideoRef.current)
-          return;
-        canvas.width = screenVideoRef.current.videoWidth || 1280;
-        canvas.height = screenVideoRef.current.videoHeight || 720;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        const drawFrame = () => {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(screenVideoRef.current!, 0, 0, canvas.width, canvas.height);
-          const overlaySize = Math.min(canvas.width, canvas.height) / 4;
-          const x = canvas.width - overlaySize - 20;
-          const y = canvas.height - overlaySize - 20;
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(x + overlaySize / 2, y + overlaySize / 2, overlaySize / 2, 0, Math.PI * 2);
-          ctx.clip();
-          ctx.drawImage(overlayCameraVideoRef.current!, x, y, overlaySize, overlaySize);
-          ctx.restore();
-          requestAnimationFrame(drawFrame);
-        };
-        drawFrame();
-
-        const combinedStream = canvas.captureStream(30);
-        screenStream.getAudioTracks().forEach((track) => {
-          combinedStream.addTrack(track);
-        });
-
-        const options = { mimeType: "video/mp4" };
-        const mediaRecorder = new MediaRecorder(combinedStream, options);
-        mediaRecorderRef.current = mediaRecorder;
-        recordedChunksRef.current = [];
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) {
-            recordedChunksRef.current.push(event.data);
-          }
-        };
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(recordedChunksRef.current, { type: "video/mp4" });
-          setRecordedBlob(blob);
-          screenStream.getTracks().forEach((track) => track.stop());
-          cameraStream.getTracks().forEach((track) => track.stop());
-        };
-        mediaRecorder.start();
-        setIsRecording(true);
       } else {
         // --- Camera-Only Mode ---
-        // Use react-webcam's stream.
+        if (!showWebcam) {
+          setShowWebcam(true);
+          return;
+        }
+
+        // Once the webcam is mounted, grab its stream.
         const stream = webcamRef.current?.video?.srcObject as MediaStream | undefined;
         if (!stream) {
           console.error("Webcam stream not available");
           return;
         }
+
         const options = { mimeType: "video/mp4" };
         const mediaRecorder = new MediaRecorder(stream, options);
         mediaRecorderRef.current = mediaRecorder;
@@ -121,6 +60,7 @@ const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
         mediaRecorder.onstop = () => {
           const blob = new Blob(recordedChunksRef.current, { type: "video/mp4" });
           setRecordedBlob(blob);
+          // Stop all tracks when recording stops.
           stream.getTracks().forEach((track) => track.stop());
         };
         mediaRecorder.start();
@@ -140,31 +80,34 @@ const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
       isRecording,
     }));
 
-    // Render different UI based on the mode.
     if (mode === "screen") {
       return (
         <div className="hidden">
-          {/* These elements are used for compositing in screen mode */}
-          <video ref={screenVideoRef} className="hidden" />
-          <video ref={overlayCameraVideoRef} className="hidden" />
-          <canvas ref={canvasRef} className="hidden" />
+          {/* Hidden elements for compositing in screen mode */}
+          <video ref={null} className="hidden" />
+          <video ref={null} className="hidden" />
+          <canvas ref={null} className="hidden" />
         </div>
       );
     } else {
-      return (
-        <div className="p-4">
-          {/* Show the react-webcam preview for camera-only mode */}
-          <Webcam
-            audio={true}
-            ref={webcamRef}
-            videoConstraints={{ facingMode: "user" }}
-            className="w-[600px] border rounded-lg"
-          />
-        </div>
+      // For camera-only mode, render a draggable popup (picture-in-picture)
+      return showWebcam && (
+        <Draggable nodeRef={draggableRef as React.RefObject<HTMLElement>}>
+          <div
+            ref={draggableRef}
+            className="fixed bottom-4 right-4 p-2 bg-white border border-gray-300 shadow-lg rounded-lg z-50"
+          >
+
+            <Webcam
+              audio={true}
+              ref={webcamRef}
+              videoConstraints={{ facingMode: "user" }} // Use the front camera.
+              className="w-[600px] rounded-lg"
+            />
+          </div>
+        </Draggable>
       );
     }
   }
 );
-
-RecorderSection.displayName = "RecorderSection";
 export default RecorderSection;

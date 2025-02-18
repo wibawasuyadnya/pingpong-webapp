@@ -1,17 +1,29 @@
 "use client";
 import React, { useRef, useState } from "react";
-import RecorderSection, { RecorderSectionHandle } from "./Section-Component/Recorder";
 import VideoUploader from "./Section-Component/VideoUploader";
+import RecorderSection, { RecorderSectionHandle } from "./Section-Component/Recorder";
 
 export default function Section() {
     // Create a ref to access RecorderSection's imperative methods.
     const recorderRef = useRef<RecorderSectionHandle>(null);
+
     // Local state for recording mode; default is "camera".
     const [selectedRecordingType, setSelectedRecordingType] = useState("camera");
 
-    // When the user clicks "Start recording", call the recorder's startRecording.
-    const handleStartRecording = () => {
-        recorderRef.current?.startRecording();
+    // Local state to track if recording is in progress.
+    const [isRecording, setIsRecording] = useState(false);
+
+    // Toggle recording: start recording if not recording, otherwise stop.
+    const handleToggleRecording = () => {
+        if (!isRecording) {
+            // Start recording.
+            recorderRef.current?.startRecording();
+            setIsRecording(true);
+        } else {
+            // Stop recording.
+            recorderRef.current?.stopRecording();
+            setIsRecording(false);
+        }
     };
 
     return (
@@ -28,15 +40,15 @@ export default function Section() {
                             Record yourself and your screen directly from our web app—perfect for
                             presentations and pitches.
                             <br />
-                            Click 'Start recording' to begin!
+                            Click the button below to {isRecording ? "stop" : "start"} recording!
                         </p>
                         {/* Selection Buttons */}
                         <div className="space-y-4">
                             <button
                                 onClick={() => setSelectedRecordingType("camera")}
                                 className={`flex flex-row items-center gap-2 py-3 px-5 w-[400px] rounded-lg border ${selectedRecordingType === "camera"
-                                        ? "border-[#B14AE2] bg-[#F9F4FF]"
-                                        : "border-gray-300"
+                                    ? "border-[#B14AE2] bg-[#F9F4FF]"
+                                    : "border-gray-300"
                                     }`}
                             >
                                 {selectedRecordingType === "camera" ? (
@@ -49,8 +61,8 @@ export default function Section() {
                             <button
                                 onClick={() => setSelectedRecordingType("screen")}
                                 className={`flex flex-row items-center gap-2 py-3 px-5 w-[400px] rounded-lg border ${selectedRecordingType === "screen"
-                                        ? "border-[#B14AE2] bg-[#F9F4FF]"
-                                        : "border-gray-300"
+                                    ? "border-[#B14AE2] bg-[#F9F4FF]"
+                                    : "border-gray-300"
                                     }`}
                             >
                                 {selectedRecordingType === "screen" ? (
@@ -64,10 +76,10 @@ export default function Section() {
                     </div>
                     <div className="relative w-fit flex flex-col justify-end">
                         <button
-                            onClick={handleStartRecording}
+                            onClick={handleToggleRecording}
                             className="border border-[#FF2D55] border-solid py-2 px-5 text-[#FF2D55] font-medium rounded-lg text-sm"
                         >
-                            Start recording
+                            {isRecording ? "Stop recording" : "Start recording"}
                         </button>
                     </div>
                 </div>
@@ -77,7 +89,10 @@ export default function Section() {
             <VideoUploader />
 
             {/* RecorderSection with mode prop */}
-            <RecorderSection ref={recorderRef} mode={selectedRecordingType as "camera" | "screen"} />
+            <RecorderSection
+                ref={recorderRef}
+                mode={selectedRecordingType as "camera" | "screen"}
+            />
         </div>
     );
 }
