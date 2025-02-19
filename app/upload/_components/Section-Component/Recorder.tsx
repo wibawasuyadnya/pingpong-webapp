@@ -1,18 +1,20 @@
 "use client";
 import React, {
-  useRef,
-  useState,
   forwardRef,
   useImperativeHandle,
+  useRef,
+  useState,
 } from "react";
-import Webcam from "react-webcam";
-import Draggable from "react-draggable";
+import CameraRecorder, {
+  CameraRecorderHandle,
+} from "./Recorder-Components/CameraRecorder";
+import ScreenRecorder, {
+  ScreenRecorderHandle,
+} from "./Recorder-Components/ScreenRecorder";
 
 export interface RecorderSectionHandle {
   startRecording: () => Promise<void>;
   stopRecording: () => void;
-  recordedBlob: Blob | null;
-  isRecording: boolean;
 }
 
 interface RecorderSectionProps {
@@ -21,93 +23,45 @@ interface RecorderSectionProps {
 
 const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
   ({ mode }, ref) => {
-    const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const cameraRecorderRef = useRef<CameraRecorderHandle>(null);
+    const screenRecorderRef = useRef<ScreenRecorderHandle>(null);
     const [isRecording, setIsRecording] = useState(false);
-    const [showWebcam, setShowWebcam] = useState(false);
-    const recordedChunksRef = useRef<Blob[]>([]);
 
-    // For camera-only mode.
-    const webcamRef = useRef<Webcam>(null);
-    // Create a ref for the draggable container.
-    const draggableRef = useRef<HTMLDivElement>(null);
-
+    // We define two methods for starting and stopping recording.
     const startRecording = async () => {
-      if (mode === "screen") {
+      if (mode === "camera") {
+        await cameraRecorderRef.current?.startRecording();
       } else {
-        // --- Camera-Only Mode ---
-        if (!showWebcam) {
-          setShowWebcam(true);
-          return;
-        }
-
-        // Once the webcam is mounted, grab its stream.
-        const stream = webcamRef.current?.video?.srcObject as MediaStream | undefined;
-        if (!stream) {
-          console.error("Webcam stream not available");
-          return;
-        }
-
-        const options = { mimeType: "video/mp4" };
-        const mediaRecorder = new MediaRecorder(stream, options);
-        mediaRecorderRef.current = mediaRecorder;
-        recordedChunksRef.current = [];
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) {
-            recordedChunksRef.current.push(event.data);
-          }
-        };
-        mediaRecorder.onstop = () => {
-          const blob = new Blob(recordedChunksRef.current, { type: "video/mp4" });
-          setRecordedBlob(blob);
-          // Stop all tracks when recording stops.
-          stream.getTracks().forEach((track) => track.stop());
-        };
-        mediaRecorder.start();
-        setIsRecording(true);
+        await screenRecorderRef.current?.startRecording();
       }
+      setIsRecording(true);
     };
 
     const stopRecording = () => {
-      mediaRecorderRef.current?.stop();
+      if (mode === "camera") {
+        cameraRecorderRef.current?.stopRecording();
+      } else {
+        screenRecorderRef.current?.stopRecording();
+      }
       setIsRecording(false);
     };
 
+    // Expose the imperative handle so the parent can call these methods.
     useImperativeHandle(ref, () => ({
       startRecording,
       stopRecording,
-      recordedBlob,
-      isRecording,
     }));
 
-    if (mode === "screen") {
-      return (
-        <div className="hidden">
-          {/* Hidden elements for compositing in screen mode */}
-          <video ref={null} className="hidden" />
-          <video ref={null} className="hidden" />
-          <canvas ref={null} className="hidden" />
-        </div>
-      );
-    } else {
-      // For camera-only mode, render a draggable popup (picture-in-picture)
-      return showWebcam && (
-        <Draggable nodeRef={draggableRef as React.RefObject<HTMLElement>}>
-          <div
-            ref={draggableRef}
-            className="fixed bottom-4 right-4 p-2 bg-white border border-gray-300 shadow-lg rounded-lg z-50"
-          >
-
-            <Webcam
-              audio={true}
-              ref={webcamRef}
-              videoConstraints={{ facingMode: "user" }} // Use the front camera.
-              className="w-[600px] rounded-lg"
-            />
-          </div>
-        </Draggable>
-      );
-    }
+    return (
+      <div className="space-y-5">
+        {mode === "camera" ? (
+          <CameraRecorder ref={cameraRecorderRef} />
+        ) : (
+          <ScreenRecorder ref={screenRecorderRef} />
+        )}
+      </div>
+    );
   }
 );
+
 export default RecorderSection;

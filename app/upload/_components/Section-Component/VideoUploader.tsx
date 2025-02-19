@@ -1,3 +1,4 @@
+// VideoUploader.tsx
 "use client";
 import React, { useRef, useState } from "react";
 import { FileVideo, Proportions, Upload, Video } from "lucide-react";
