@@ -27,7 +27,8 @@
     "react-dom": "^19.0.0",
     "react-draggable": "^4.4.6",
     "react-redux": "^9.2.0",
-    "react-webcam": "^7.2.0"
+    "react-webcam": "^7.2.0",
+    "webm-to-mp4": "^1.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

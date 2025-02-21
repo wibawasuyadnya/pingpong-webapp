@@ -9,8 +9,14 @@ import React, {
 } from "react";
 import Webcam from "react-webcam";
 import Draggable from "react-draggable";
-import { RotateCcw, Pause, Play, RectangleVertical, RectangleHorizontal, X } from "lucide-react";
-import { convertWebMToMP4 } from "@/utils/convertWebMtoMP4";
+import {
+    RotateCcw,
+    Pause,
+    Play,
+    RectangleVertical,
+    RectangleHorizontal,
+    X,
+} from "lucide-react";
 
 export interface CameraRecorderHandle {
     startRecording: () => Promise<void>;
@@ -24,10 +30,8 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
 
-    // The final recorded WebM
-    const [recordedWebm, setRecordedWebm] = useState<Blob | null>(null);
-    // The converted MP4
-    const [convertedMp4, setConvertedMp4] = useState<Blob | null>(null);
+    // The final recorded MP4
+    const [recordedMp4, setRecordedMp4] = useState<Blob | null>(null);
 
     // Show/hide webcam & final preview
     const [showWebcam, setShowWebcam] = useState(false);
@@ -94,17 +98,17 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         }
 
         ctx.clearRect(0, 0, boundingWidth, boundingHeight);
+
         ctx.drawImage(
             video,
-            boundingLeft,
-            boundingTop,
-            boundingWidth,
-            boundingHeight,
-            0,
-            0,
+            0, 0,
+            video.videoWidth,
+            video.videoHeight,
+            0, 0,
             boundingWidth,
             boundingHeight
         );
+
 
         animationFrameRef.current = requestAnimationFrame(drawFrame);
     };
@@ -147,16 +151,16 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         if (!canvasRef.current) return;
         const canvasStream = canvasRef.current.captureStream(30);
 
-        // Add audio
+        // Add audio tracks from original stream
         originalStream.getAudioTracks().forEach((track) => {
             canvasStream.addTrack(track);
         });
 
-        // **Always** record in WebM for reliability
-        let mimeType = "video/webm; codecs=vp9";
+        // **Always** record in MP4 (if supported)
+        let mimeType = "video/mp4";
         if (!MediaRecorder.isTypeSupported(mimeType)) {
-            console.warn("VP9 not supported; falling back to VP8");
-            mimeType = "video/webm; codecs=vp8";
+            console.error("MP4 recording is not supported by this browser.");
+            return;
         }
 
         try {
@@ -176,20 +180,12 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                     return;
                 }
 
-                // Finalize the WebM
-                const webmBlob = new Blob(recordedChunksRef.current, { type: mimeType });
-                setRecordedWebm(webmBlob);
+                // Finalize the MP4 blob
+                const mp4Blob = new Blob(recordedChunksRef.current, { type: mimeType });
+                setRecordedMp4(mp4Blob);
 
                 // Stop original stream
                 originalStream.getTracks().forEach((t) => t.stop());
-
-                // Convert WebM -> MP4 client-side
-                try {
-                    const mp4Blob = await convertWebMToMP4(webmBlob);
-                    setConvertedMp4(mp4Blob);
-                } catch (err) {
-                    console.error("Error converting to MP4:", err);
-                }
 
                 setShowWebcam(false);
                 setShowPreview(true);
@@ -248,8 +244,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
             setIsPaused(false);
         }
         setTimer(0);
-        setRecordedWebm(null);
-        setConvertedMp4(null);
+        setRecordedMp4(null);
         setShowPreview(false);
         await startRecording();
     };
@@ -269,8 +264,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         setTimer(0);
 
-        setRecordedWebm(null);
-        setConvertedMp4(null);
+        setRecordedMp4(null);
         setShowPreview(false);
         setShowWebcam(false);
     };
@@ -279,7 +273,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
     useImperativeHandle(ref, () => ({
         startRecording,
         stopRecording,
-        recordedBlob: convertedMp4, // or recordedWebm, your choice
+        recordedBlob: recordedMp4,
         isRecording,
     }));
 
@@ -326,7 +320,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                     </div>
                     {/* Webcam or Preview Container */}
                     <div className="relative w-full h-[450px] rounded-b-lg overflow-hidden bg-black">
-                        {/* If showWebcam, show the live feed & bounding box overlays */}
+                        {/* Live webcam feed with bounding box overlays */}
                         {showWebcam && !showPreview && (
                             <Fragment>
                                 <Webcam
@@ -352,32 +346,18 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                             </Fragment>
                         )}
 
-                        {/* If showPreview, display both WebM and MP4 side by side */}
-                        {showPreview && recordedWebm && convertedMp4 && (
+                        {/* Preview MP4 video */}
+                        {showPreview && recordedMp4 && (
                             <Fragment>
-                                <div className="absolute inset-0 flex flex-row gap-2 items-center justify-center bg-black/80 p-4">
-                                    {/* Left: WebM Preview */}
-                                    <div className="flex flex-col items-center">
-                                        <h4 className="text-white mb-2 text-sm">WebM</h4>
-                                        <video
-                                            controls
-                                            autoPlay
-                                            className="border border-white"
-                                            style={{ width: "280px", height: "350px", objectFit: "cover" }}
-                                            src={URL.createObjectURL(recordedWebm)}
-                                        />
-                                    </div>
-                                    {/* Right: MP4 Preview */}
-                                    <div className="flex flex-col items-center">
-                                        <h4 className="text-white mb-2 text-sm">MP4</h4>
-                                        <video
-                                            controls
-                                            autoPlay
-                                            className="border border-white"
-                                            style={{ width: "280px", height: "auto", objectFit: "cover" }}
-                                            src={URL.createObjectURL(convertedMp4)}
-                                        />
-                                    </div>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 p-4">
+                                    <h4 className="text-white mb-2 text-sm">MP4</h4>
+                                    <video
+                                        controls
+                                        autoPlay
+                                        className="border border-white"
+                                        style={{ width: "280px", height: "450px", objectFit: "cover" }}
+                                        src={URL.createObjectURL(recordedMp4)}
+                                    />
                                 </div>
                                 {/* Close button */}
                                 <button
@@ -406,8 +386,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                                             setIsPaused(false);
                                         }
                                         setTimer(0);
-                                        setRecordedWebm(null);
-                                        setConvertedMp4(null);
+                                        setRecordedMp4(null);
                                         setShowPreview(false);
                                         await startRecording();
                                     }}
@@ -444,7 +423,9 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                             <div className="flex items-center gap-1">
                                 <button
                                     onClick={() => setAspect("portrait")}
-                                    className={`flex flex-row gap-2 justify-center items-center px-3 py-3 text-white rounded-full text-sm transition hover:opacity-80 ${aspect === "portrait" ? "bg-purple-600" : "bg-transparent"
+                                    className={`flex flex-row gap-2 justify-center items-center px-3 py-3 text-white rounded-full text-sm transition hover:opacity-80 ${aspect === "portrait"
+                                        ? "bg-purple-600"
+                                        : "bg-transparent"
                                         }`}
                                 >
                                     <RectangleVertical />
@@ -452,7 +433,9 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                                 </button>
                                 <button
                                     onClick={() => setAspect("landscape")}
-                                    className={`flex flex-row gap-2 justify-center items-center px-3 py-3 text-white rounded-full text-sm transition hover:opacity-80 ${aspect === "landscape" ? "bg-purple-600" : "bg-transparent"
+                                    className={`flex flex-row gap-2 justify-center items-center px-3 py-3 text-white rounded-full text-sm transition hover:opacity-80 ${aspect === "landscape"
+                                        ? "bg-purple-600"
+                                        : "bg-transparent"
                                         }`}
                                 >
                                     <RectangleHorizontal />
@@ -476,6 +459,5 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         </Draggable>
     );
 });
-
 
 export default CameraRecorder;

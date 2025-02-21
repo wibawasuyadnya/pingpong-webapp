@@ -1,3 +1,4 @@
+// Section-Component/Section.tsx
 "use client";
 import React, { useRef, useState } from "react";
 import VideoUploader from "./Section-Component/VideoUploader";
@@ -6,15 +7,10 @@ import RecorderSection, {
 } from "./Section-Component/Recorder";
 
 export default function Section() {
-    // Create a ref to access RecorderSection's imperative methods.
     const recorderRef = useRef<RecorderSectionHandle>(null);
-
-    // Local state for recording mode; default is "camera".
     const [selectedRecordingType, setSelectedRecordingType] = useState("camera");
-    // Local state to track if recording is in progress.
     const [isRecording, setIsRecording] = useState(false);
 
-    // Toggle recording: start recording if not recording, otherwise stop.
     const handleToggleRecording = async () => {
         if (!isRecording) {
             await recorderRef.current?.startRecording();

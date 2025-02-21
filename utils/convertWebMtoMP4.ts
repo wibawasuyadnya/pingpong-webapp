@@ -1,49 +1,20 @@
-"use client";
-
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { fetchFile, toBlobURL } from "@ffmpeg/util";
-
-const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd";
-const ffmpeg = new FFmpeg();
-let loaded = false;
-
-async function loadFFmpeg(): Promise<void> {
-    if (!loaded) {
-        await ffmpeg.load({
-            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
-        });
-        loaded = true;
-    }
-}
-
+// utils/convertWebMtoMP4.ts
 export async function convertWebMToMP4(webmBlob: Blob): Promise<Blob> {
-    await loadFFmpeg();
+    const formData = new FormData();
+    formData.append("file", webmBlob, "recording.webm");
 
-    // Clean previous files in the virtual FS
-    try { ffmpeg.FS("unlink", "input.webm"); } catch (e) { }
-    try { ffmpeg.FS("unlink", "output.mp4"); } catch (e) { }
+    const response = await fetch("/api/convert", {
+        method: "POST",
+        body: formData,
+    });
 
-    // Write the input WebM file
-    await ffmpeg.writeFile("input.webm", await fetchFile(webmBlob));
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Conversion API error response:", errorText);
+        throw new Error("Conversion API failed");
+    }
 
-    // Execute conversion with additional flags
-    await ffmpeg.exec([
-        "-i", "input.webm",
-        "-c:v", "libx264",
-        "-preset", "veryfast",         // optional, for faster encoding
-        "-profile:v", "baseline",      // increases compatibility
-        "-level", "3.0",
-        "-pix_fmt", "yuv420p",         // ensures compatibility with players
-        "-r", "30",                    // force a 30fps frame rate
-        "-c:a", "aac",
-        "-movflags", "+faststart",     // moves metadata to the start
-        "output.mp4",
-      ]);
-      
-
-    // Read the output file
-    const data = await ffmpeg.readFile("output.mp4");
-
-    return new Blob([data.buffer], { type: "video/mp4" });
+    // Return the MP4 file as a Blob
+    const mp4Blob = await response.blob();
+    return mp4Blob;
 }

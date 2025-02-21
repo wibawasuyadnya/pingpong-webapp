@@ -64,5 +64,4 @@ const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
     }
 );
 
-RecorderSection.displayName = "RecorderSection";
 export default RecorderSection;
