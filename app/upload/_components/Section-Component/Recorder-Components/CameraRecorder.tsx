@@ -9,7 +9,8 @@ import React, {
 } from "react";
 import Webcam from "react-webcam";
 import Draggable from "react-draggable";
-import { Circle, CirclePause, Pause, Play, RectangleHorizontal, RectangleVertical, RotateCcw, X } from "lucide-react";
+import { RotateCcw, Pause, Play, RectangleVertical, RectangleHorizontal, X } from "lucide-react";
+import { convertWebMToMP4 } from "@/utils/convertWebMtoMP4";
 
 export interface CameraRecorderHandle {
     startRecording: () => Promise<void>;
@@ -19,10 +20,14 @@ export interface CameraRecorderHandle {
 }
 
 const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
-    // ------------------- STATE -------------------
+    // Recording states
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
-    const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
+
+    // The final recorded WebM
+    const [recordedWebm, setRecordedWebm] = useState<Blob | null>(null);
+    // The converted MP4
+    const [convertedMp4, setConvertedMp4] = useState<Blob | null>(null);
 
     // Show/hide webcam & final preview
     const [showWebcam, setShowWebcam] = useState(false);
@@ -38,43 +43,43 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
     // Aspect ratio: "portrait" => 9:16, "landscape" => 16:9
     const [aspect, setAspect] = useState<"portrait" | "landscape">("portrait");
 
-    // ------------------- REFS -------------------
+    // Draggable state for changing the cursor
+    const [isDragging, setIsDragging] = useState(false);
+
+    // Refs
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const recordedChunksRef = useRef<Blob[]>([]);
     const webcamRef = useRef<Webcam>(null);
 
-    // Draggable container & hidden canvas for real-time cropping
     const draggableRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const animationFrameRef = useRef<number | null>(null);
 
-    // ------------------- DIMENSIONS -------------------
-    // Overall container size
-    const containerWidth = 600; // parent width
-    const containerHeight = 600; // parent height
+    // A ref to track whether we're stopping because of a retry
+    const stoppingBecauseOfRetryRef = useRef(false);
 
-    // The webcam/preview box is 450px tall
+    // Container sizes
+    const containerWidth = 600;
+    const containerHeight = 600;
     const webcamBoxHeight = 450;
 
-    // bounding box logic uses webcamBoxHeight for portrait or containerWidth for landscape
+    // bounding box logic
     const boundingWidth =
         aspect === "portrait" ? (9 / 16) * webcamBoxHeight : containerWidth;
     const boundingHeight =
         aspect === "portrait" ? webcamBoxHeight : (9 / 16) * containerWidth;
 
-    // Center the bounding box horizontally
     const boundingLeft = (containerWidth - boundingWidth) / 2;
-    // Center (or shift) it vertically within the 450px region
     const boundingTop = (webcamBoxHeight - boundingHeight) / 2;
 
-    // ------------------- UTILS -------------------
+    // Format mm:ss
     const formatTime = (sec: number) => {
         const m = Math.floor(sec / 60).toString().padStart(2, "0");
         const s = (sec % 60).toString().padStart(2, "0");
         return `${m}:${s}`;
     };
 
-    // ------------------- DRAW LOOP -------------------
+    // Continuously draw bounding box region from webcam to canvas
     const drawFrame = () => {
         if (!canvasRef.current || !webcamRef.current?.video) {
             animationFrameRef.current = requestAnimationFrame(drawFrame);
@@ -89,7 +94,6 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         }
 
         ctx.clearRect(0, 0, boundingWidth, boundingHeight);
-        // "object-fill" => the video fully occupies the 600×450 region
         ctx.drawImage(
             video,
             boundingLeft,
@@ -114,13 +118,13 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         }
     }, [showWebcam, boundingWidth, boundingHeight, boundingLeft, boundingTop]);
 
-    // ------------------- RECORDING LOGIC -------------------
+    // Start Recording
     const startRecording = async () => {
         setShowPreview(false);
 
+        // If webcam not shown, show it & wait for metadata
         if (!showWebcam) {
             setShowWebcam(true);
-            // Wait until the video is ready
             await new Promise<void>((resolve) => {
                 const checkVideoReady = () => {
                     const vid = webcamRef.current?.video;
@@ -143,15 +147,16 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         if (!canvasRef.current) return;
         const canvasStream = canvasRef.current.captureStream(30);
 
-        // Add audio from original webcam
+        // Add audio
         originalStream.getAudioTracks().forEach((track) => {
             canvasStream.addTrack(track);
         });
 
-        let mimeType = "video/mp4";
+        // **Always** record in WebM for reliability
+        let mimeType = "video/webm; codecs=vp9";
         if (!MediaRecorder.isTypeSupported(mimeType)) {
-            console.warn("video/mp4 not supported; falling back to video/webm");
-            mimeType = "video/webm";
+            console.warn("VP9 not supported; falling back to VP8");
+            mimeType = "video/webm; codecs=vp8";
         }
 
         try {
@@ -165,11 +170,27 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                 }
             };
 
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(recordedChunksRef.current, { type: mimeType });
-                setRecordedBlob(blob);
+            mediaRecorder.onstop = async () => {
+                if (stoppingBecauseOfRetryRef.current) {
+                    stoppingBecauseOfRetryRef.current = false;
+                    return;
+                }
 
+                // Finalize the WebM
+                const webmBlob = new Blob(recordedChunksRef.current, { type: mimeType });
+                setRecordedWebm(webmBlob);
+
+                // Stop original stream
                 originalStream.getTracks().forEach((t) => t.stop());
+
+                // Convert WebM -> MP4 client-side
+                try {
+                    const mp4Blob = await convertWebMToMP4(webmBlob);
+                    setConvertedMp4(mp4Blob);
+                } catch (err) {
+                    console.error("Error converting to MP4:", err);
+                }
+
                 setShowWebcam(false);
                 setShowPreview(true);
 
@@ -181,7 +202,6 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
             setIsRecording(true);
             setIsPaused(false);
 
-            // Timer
             timerIntervalRef.current = setInterval(() => {
                 setTimer((prev) => prev + 1);
             }, 1000);
@@ -190,6 +210,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         }
     };
 
+    // Stop
     const stopRecording = () => {
         if (mediaRecorderRef.current && isRecording) {
             mediaRecorderRef.current.stop();
@@ -198,6 +219,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         }
     };
 
+    // Pause
     const pauseRecording = () => {
         if (mediaRecorderRef.current && isRecording && !isPaused) {
             mediaRecorderRef.current.pause();
@@ -206,6 +228,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         }
     };
 
+    // Resume
     const resumeRecording = () => {
         if (mediaRecorderRef.current && isRecording && isPaused) {
             mediaRecorderRef.current.resume();
@@ -216,18 +239,22 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         }
     };
 
+    // Retry
     const retryRecording = async () => {
         if (mediaRecorderRef.current && isRecording) {
+            stoppingBecauseOfRetryRef.current = true;
             mediaRecorderRef.current.stop();
             setIsRecording(false);
             setIsPaused(false);
         }
         setTimer(0);
-        setRecordedBlob(null);
+        setRecordedWebm(null);
+        setConvertedMp4(null);
         setShowPreview(false);
         await startRecording();
     };
 
+    // Close
     const closeRecording = () => {
         if (mediaRecorderRef.current && isRecording) {
             try {
@@ -242,45 +269,37 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         setTimer(0);
 
-        setRecordedBlob(null);
+        setRecordedWebm(null);
+        setConvertedMp4(null);
         setShowPreview(false);
         setShowWebcam(false);
     };
 
-    // ------------------- IMPERATIVE HANDLE -------------------
+    // Expose methods to parent
     useImperativeHandle(ref, () => ({
         startRecording,
         stopRecording,
-        recordedBlob,
+        recordedBlob: convertedMp4, // or recordedWebm, your choice
         isRecording,
     }));
 
-    // If neither webcam nor preview is shown, we render nothing
+    // If neither webcam nor preview is shown, render nothing
     if (!showWebcam && !showPreview) return null;
 
-    // Overlays outside bounding box (for portrait or landscape)
-    // 1) top
-    const topOverlayStyle = {
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: boundingTop,
-    };
-    // 2) bottom
+    // Overlays for bounding box
+    const topOverlayStyle = { top: 0, left: 0, width: "100%", height: boundingTop };
     const bottomOverlayStyle = {
         top: boundingTop + boundingHeight,
         left: 0,
         width: "100%",
         height: webcamBoxHeight - (boundingTop + boundingHeight),
     };
-    // 3) left
     const leftOverlayStyle = {
         top: boundingTop,
         left: 0,
         width: boundingLeft,
         height: boundingHeight,
     };
-    // 4) right
     const rightOverlayStyle = {
         top: boundingTop,
         left: boundingLeft + boundingWidth,
@@ -289,17 +308,23 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
     };
 
     return (
-        <Draggable nodeRef={draggableRef as React.RefObject<HTMLElement>}>
+        <Draggable
+            nodeRef={draggableRef as React.RefObject<HTMLElement>}
+            onStart={() => setIsDragging(true)}
+            onStop={() => setIsDragging(false)}
+        >
             <div
                 ref={draggableRef}
-                className="fixed bottom-16 right-16 flex flex-col gap-4 bg-transparent z-[9999]"
+                className={`fixed bottom-16 right-16 flex flex-col gap-4 bg-transparent z-[9999] ${isDragging ? "cursor-grabbing" : "cursor-grab"
+                    }`}
                 style={{ width: `${containerWidth}px`, height: `${containerHeight}px` }}
             >
+                {/* Title + Webcam/Preview */}
                 <div>
                     <div className="rounded-t-lg bg-black px-3 py-2">
                         <span className="font-semibold text-white">Recorder Preview</span>
                     </div>
-                    {/* 1) Webcam or Preview Container (rounded corners) */}
+                    {/* Webcam or Preview Container */}
                     <div className="relative w-full h-[450px] rounded-b-lg overflow-hidden bg-black">
                         {/* If showWebcam, show the live feed & bounding box overlays */}
                         {showWebcam && !showPreview && (
@@ -311,8 +336,6 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                                     className="absolute top-0 left-0 w-full h-full object-fill"
                                     videoConstraints={{ facingMode: "user" }}
                                 />
-
-                                {/* Dashed bounding box */}
                                 <div
                                     className="absolute border-2 border-dashed border-white pointer-events-none"
                                     style={{
@@ -322,8 +345,6 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                                         height: boundingHeight,
                                     }}
                                 />
-
-                                {/* Overlays: top, bottom, left, right */}
                                 <div className="absolute bg-black/50" style={topOverlayStyle} />
                                 <div className="absolute bg-black/50" style={bottomOverlayStyle} />
                                 <div className="absolute bg-black/50" style={leftOverlayStyle} />
@@ -331,28 +352,33 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                             </Fragment>
                         )}
 
-                        {/* If showPreview, display the final cropped video */}
-                        {showPreview && recordedBlob && (
+                        {/* If showPreview, display both WebM and MP4 side by side */}
+                        {showPreview && recordedWebm && convertedMp4 && (
                             <Fragment>
-                                <video
-                                    controls
-                                    autoPlay
-                                    className="absolute"
-                                    style={{
-                                        top: boundingTop,
-                                        left: boundingLeft,
-                                        width: boundingWidth,
-                                        height: boundingHeight,
-                                        objectFit: "cover",
-                                    }}
-                                    src={URL.createObjectURL(recordedBlob)}
-                                />
-                                {/* Overlays: top, bottom, left, right */}
-                                <div className="absolute bg-black/50" style={topOverlayStyle} />
-                                <div className="absolute bg-black/50" style={bottomOverlayStyle} />
-                                <div className="absolute bg-black/50" style={leftOverlayStyle} />
-                                <div className="absolute bg-black/50" style={rightOverlayStyle} />
-
+                                <div className="absolute inset-0 flex flex-row gap-2 items-center justify-center bg-black/80 p-4">
+                                    {/* Left: WebM Preview */}
+                                    <div className="flex flex-col items-center">
+                                        <h4 className="text-white mb-2 text-sm">WebM</h4>
+                                        <video
+                                            controls
+                                            autoPlay
+                                            className="border border-white"
+                                            style={{ width: "280px", height: "350px", objectFit: "cover" }}
+                                            src={URL.createObjectURL(recordedWebm)}
+                                        />
+                                    </div>
+                                    {/* Right: MP4 Preview */}
+                                    <div className="flex flex-col items-center">
+                                        <h4 className="text-white mb-2 text-sm">MP4</h4>
+                                        <video
+                                            controls
+                                            autoPlay
+                                            className="border border-white"
+                                            style={{ width: "280px", height: "auto", objectFit: "cover" }}
+                                            src={URL.createObjectURL(convertedMp4)}
+                                        />
+                                    </div>
+                                </div>
                                 {/* Close button */}
                                 <button
                                     onClick={closeRecording}
@@ -365,16 +391,31 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                     </div>
                 </div>
 
-                {/* 2) Control Bar (separate container) */}
+                {/* Control Bar */}
                 {showWebcam && !showPreview && (
                     <div className="w-full flex flex-row justify-center items-center">
                         <div className="flex items-center justify-center gap-5 bg-black rounded-full px-10 py-2 w-fit">
                             {/* Retry */}
                             <div>
-                                <RotateCcw onClick={retryRecording} className="text-white size-6 cursor-pointer" />
+                                <RotateCcw
+                                    onClick={async () => {
+                                        stoppingBecauseOfRetryRef.current = true;
+                                        if (mediaRecorderRef.current && isRecording) {
+                                            mediaRecorderRef.current.stop();
+                                            setIsRecording(false);
+                                            setIsPaused(false);
+                                        }
+                                        setTimer(0);
+                                        setRecordedWebm(null);
+                                        setConvertedMp4(null);
+                                        setShowPreview(false);
+                                        await startRecording();
+                                    }}
+                                    className="text-white size-6 cursor-pointer"
+                                />
                             </div>
 
-                            {/* Timer (top-left corner) */}
+                            {/* Timer */}
                             <div className="text-white px-2 py-1 rounded text-base font-bold">
                                 {formatTime(timer)}
                             </div>
@@ -386,7 +427,6 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                                     className="bg-red-500 text-white border-[3px] border-white w-10 h-10 rounded-full transition hover:opacity-80"
                                 />
                             )}
-
 
                             {/* Pause/Resume */}
                             {isRecording && !isPaused && (
@@ -404,23 +444,22 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                             <div className="flex items-center gap-1">
                                 <button
                                     onClick={() => setAspect("portrait")}
-                                    className={`flex-row flex gap-2 justify-center items-center px-3 py-3 text-white rounded-full text-sm transition hover:opacity-80 ${aspect === "portrait" ? "bg-purple-600" : "bg-transparent"
+                                    className={`flex flex-row gap-2 justify-center items-center px-3 py-3 text-white rounded-full text-sm transition hover:opacity-80 ${aspect === "portrait" ? "bg-purple-600" : "bg-transparent"
                                         }`}
                                 >
                                     <RectangleVertical />
-
                                     9:16
                                 </button>
                                 <button
                                     onClick={() => setAspect("landscape")}
-                                    className={` flex-row flex gap-2 justify-center items-center px-3 py-3 text-white rounded-full text-sm transition hover:opacity-80 ${aspect === "landscape" ? "bg-purple-600" : "bg-transparent"
+                                    className={`flex flex-row gap-2 justify-center items-center px-3 py-3 text-white rounded-full text-sm transition hover:opacity-80 ${aspect === "landscape" ? "bg-purple-600" : "bg-transparent"
                                         }`}
                                 >
                                     <RectangleHorizontal />
                                     16:9
                                 </button>
                             </div>
-                            {/* Close button (top-right corner) */}
+                            {/* Close */}
                             <X onClick={closeRecording} className="text-white size-6 cursor-pointer" />
                         </div>
                     </div>
@@ -437,5 +476,6 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         </Draggable>
     );
 });
+
 
 export default CameraRecorder;
