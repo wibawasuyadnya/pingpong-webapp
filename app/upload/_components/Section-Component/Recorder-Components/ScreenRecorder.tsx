@@ -19,17 +19,27 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, {}>((_props, ref) => {
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const recordedChunksRef = useRef<Blob[]>([]);
     const streamRef = useRef<MediaStream | null>(null);
+    const micStreamRef = useRef<MediaStream | null>(null);
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
 
     const startRecording = async () => {
         try {
+            // Capture screen video (and optionally system audio)
             const displayStream = await navigator.mediaDevices.getDisplayMedia({
                 video: true,
-                audio: true,
+                audio: false, // Set to false to exclude system audio; we'll add mic audio separately
             });
             streamRef.current = displayStream;
 
-            // Prefer MP4 with H.264 codec, fallback to WebM if unsupported
+            // Capture microphone audio
+            const micStream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+            });
+            micStreamRef.current = micStream;
+
+            // Prefer MP4 with H.264 codec, fallback to WebM
             const preferredMimeType = "video/mp4; codecs=avc1";
             const fallbackMimeType = "video/webm; codecs=vp9";
             const mimeType = MediaRecorder.isTypeSupported(preferredMimeType)
@@ -38,7 +48,20 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, {}>((_props, ref) => {
                     ? fallbackMimeType
                     : "video/webm";
 
-            const mediaRecorder = new MediaRecorder(displayStream, { mimeType });
+            // Mix screen video with microphone audio
+            audioContextRef.current = new AudioContext();
+            destinationRef.current = audioContextRef.current.createMediaStreamDestination();
+
+            const micSource = audioContextRef.current.createMediaStreamSource(micStream);
+            micSource.connect(destinationRef.current);
+
+            // Combine screen video with microphone audio
+            const combinedStream = new MediaStream([
+                ...displayStream.getVideoTracks(),
+                ...destinationRef.current.stream.getAudioTracks(),
+            ]);
+
+            const mediaRecorder = new MediaRecorder(combinedStream, { mimeType });
             mediaRecorderRef.current = mediaRecorder;
             recordedChunksRef.current = [];
 
@@ -54,8 +77,22 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, {}>((_props, ref) => {
                 setRecordedBlob(blob);
                 setPreviewUrl(url);
                 setIsRecording(false);
-                displayStream.getTracks().forEach((track) => track.stop());
+                cleanupStreams();
             };
+
+            mediaRecorder.onerror = (event) => {
+                console.error("MediaRecorder error:", event);
+            };
+
+            // Log track endings for debugging
+            combinedStream.getTracks().forEach((track) => {
+                track.onended = () => {
+                    console.log(`${track.kind} track ended.`);
+                    if (mediaRecorderRef.current?.state === "recording") {
+                        mediaRecorderRef.current.stop();
+                    }
+                };
+            });
 
             mediaRecorder.start(1000); // Timeslice for periodic dataavailable events
             setIsRecording(true);
@@ -64,6 +101,8 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, {}>((_props, ref) => {
             }, 1000);
         } catch (error) {
             console.error("Error starting recording:", error);
+            setIsRecording(false);
+            cleanupStreams();
         }
     };
 
@@ -92,8 +131,22 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, {}>((_props, ref) => {
     const closePreview = () => {
         setPreviewUrl(null);
         setRecordedBlob(null);
+        cleanupStreams();
+    };
+
+    const cleanupStreams = () => {
         if (streamRef.current) {
             streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
+        }
+        if (micStreamRef.current) {
+            micStreamRef.current.getTracks().forEach((track) => track.stop());
+            micStreamRef.current = null;
+        }
+        if (audioContextRef.current) {
+            audioContextRef.current.close();
+            audioContextRef.current = null;
+            destinationRef.current = null;
         }
     };
 

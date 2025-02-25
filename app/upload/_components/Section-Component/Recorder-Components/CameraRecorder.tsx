@@ -26,7 +26,6 @@ export interface CameraRecorderHandle {
 }
 
 const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
-    // Recording states
     const [isRecording, setIsRecording] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [recordedMp4, setRecordedMp4] = useState<Blob | null>(null);
@@ -37,7 +36,6 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
     const [isDragging, setIsDragging] = useState(false);
     const [aspect, setAspect] = useState<"portrait" | "landscape">("portrait");
 
-    // Refs
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const recordedChunksRef = useRef<Blob[]>([]);
@@ -47,7 +45,6 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
     const animationFrameRef = useRef<number | null>(null);
     const stoppingBecauseOfRetryRef = useRef(false);
 
-    // Container and bounding box dimensions
     const containerWidth = 600;
     const containerHeight = 600;
     const webcamBoxHeight = 450;
@@ -60,14 +57,12 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
     const boundingLeft = (containerWidth - boundingWidth) / 2;
     const boundingTop = (webcamBoxHeight - boundingHeight) / 2;
 
-    // Format timer
     const formatTime = (sec: number) => {
         const m = Math.floor(sec / 60).toString().padStart(2, "0");
         const s = (sec % 60).toString().padStart(2, "0");
         return `${m}:${s}`;
     };
 
-    // Draw webcam feed to canvas within bounding box
     const drawFrame = () => {
         if (!canvasRef.current || !webcamRef.current?.video) {
             animationFrameRef.current = requestAnimationFrame(drawFrame);
@@ -81,23 +76,19 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
             return;
         }
 
-        // Set canvas dimensions to match bounding box exactly
         canvasRef.current.width = boundingWidth;
         canvasRef.current.height = boundingHeight;
 
-        // Preserve video aspect ratio, cropping instead of stretching
         const videoAspect = video.videoWidth / video.videoHeight;
         const canvasAspect = boundingWidth / boundingHeight;
 
         let srcWidth, srcHeight, srcX, srcY;
         if (videoAspect > canvasAspect) {
-            // Video is wider: fit height, crop width
             srcHeight = video.videoHeight;
             srcWidth = srcHeight * canvasAspect;
             srcX = (video.videoWidth - srcWidth) / 2;
             srcY = 0;
         } else {
-            // Video is taller: fit width, crop height
             srcWidth = video.videoWidth;
             srcHeight = srcWidth / canvasAspect;
             srcX = 0;
@@ -158,7 +149,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
 
         const canvasStream = canvasRef.current.captureStream(30);
         originalStream.getAudioTracks().forEach((track) => {
-            canvasStream.addTrack(track);
+            canvasStream.addTrack(track); // Add microphone audio to the recording
         });
 
         const mimeType = MediaRecorder.isTypeSupported("video/mp4; codecs=avc1")
@@ -189,7 +180,11 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
             setTimer(0);
         };
 
-        mediaRecorder.start(1000); // Timeslice for periodic data
+        mediaRecorder.onerror = (event) => {
+            console.error("MediaRecorder error:", event);
+        };
+
+        mediaRecorder.start(1000);
         setIsRecording(true);
         setIsPaused(false);
 
@@ -258,7 +253,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
             a.href = url;
             a.download = `camera-recording.${extension}`;
             a.click();
-            URL.revokeObjectURL(url); // Clean up
+            URL.revokeObjectURL(url);
         }
     };
 
