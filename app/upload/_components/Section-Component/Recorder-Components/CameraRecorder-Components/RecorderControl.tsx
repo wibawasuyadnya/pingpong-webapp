@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { Fragment } from "react";
 import {
     RotateCcw,
     Pause,
@@ -12,6 +12,7 @@ import {
 
 interface RecorderControlsProps {
     isRecording: boolean;
+    isPaused: boolean; // new prop
     countdown: number | null;
     timer: number;
     aspect: "portrait" | "landscape";
@@ -26,6 +27,7 @@ interface RecorderControlsProps {
 
 export default function RecorderControls({
     isRecording,
+    isPaused,
     countdown,
     timer,
     aspect,
@@ -40,8 +42,11 @@ export default function RecorderControls({
     return (
         <div className="w-full flex justify-center">
             <div className="flex items-center gap-5 bg-black rounded-full px-10 py-2">
-                {/* Retry Button */}
-                <RotateCcw onClick={onRetry} className="text-white size-6 cursor-pointer" />
+
+                <RotateCcw
+                    onClick={onRetry}
+                    className="text-white size-6 cursor-pointer"
+                />
 
                 {/* Timer Display */}
                 <div className="text-white px-2 py-1 rounded text-base font-bold">
@@ -55,55 +60,77 @@ export default function RecorderControls({
                     title={!isRecording ? "Start Recording" : "Stop Recording"}
                 >
                     {countdown !== null ? (
-                        // Show static countdown (3, 2, or 1)
-                        <div className="bg-red-500 text-white border-[3px] border-white w-10 h-10 rounded-full flex items-center justify-center text-lg">
+                        <div className="bg-red-500 text-white border-[3px] border-white w-10 h-10 rounded-full flex items-center justify-center text-lg font-black">
                             {countdown}
                         </div>
                     ) : isRecording ? (
-                        // Show stop (square) icon when recording
                         <div className="bg-red-500 rounded-full p-[10px]">
                             <Square className="bg-white text-white border-[3px] border-white size-5 rounded-sm" />
                         </div>
                     ) : (
-                        // Default red circle (idle state)
                         <div className="bg-red-500 text-white border-[3px] border-white w-10 h-10 rounded-full" />
                     )}
                 </button>
 
                 {/* Pause / Resume Controls */}
-                {isRecording && (
-                    <>
-                        <div
-                            className="rounded-full border-white border-[3px] p-2 cursor-pointer"
-                            onClick={onPause}
-                        >
-                            <Pause className="text-white size-5" />
-                        </div>
-                        <div
-                            className="rounded-full border-white border-[3px] p-2 cursor-pointer"
-                            onClick={onResume}
-                        >
-                            <Play className="text-white size-5" />
-                        </div>
-                    </>
+                {isRecording && !isPaused && (
+                    <div
+                        className="rounded-full border-white border-[3px] p-2 cursor-pointer"
+                        onClick={onPause}
+                    >
+                        <Pause className="text-white size-5" />
+                    </div>
+                )}
+                
+                {isRecording && isPaused && (
+                    <div
+                        className="rounded-full border-white border-[3px] p-2 cursor-pointer"
+                        onClick={onResume}
+                    >
+                        <Play className="text-white size-5" />
+                    </div>
                 )}
 
-                {/* Aspect Ratio Buttons */}
+                {/* Aspect Ratio Buttons (active only before recording starts) */}
                 <div className="flex items-center gap-1">
                     <button
                         onClick={() => onChangeAspect("portrait")}
-                        className={`flex items-center gap-2 px-3 py-3 text-white rounded-full text-sm transition hover:opacity-80 ${aspect === "portrait" ? "bg-purple-600" : "bg-transparent"
+                        disabled={isRecording}
+                        className={`flex items-center gap-2 px-3 py-3 rounded-full text-sm transition ${aspect === "portrait"
+                            ? "bg-purple-600 text-white"
+                            : isRecording
+                                ? "bg-transparent text-[#3A3A3A]"
+                                : "bg-transparent text-white hover:opacity-80"
                             }`}
                     >
-                        <RectangleVertical />
+                        <RectangleVertical
+                            className={`${aspect === "portrait"
+                                ? "text-white"
+                                : isRecording
+                                    ? "text-[#3A3A3A]"
+                                    : "text-white"
+                                }`}
+                        />
                         9:16
                     </button>
                     <button
                         onClick={() => onChangeAspect("landscape")}
-                        className={`flex items-center gap-2 px-3 py-3 text-white rounded-full text-sm transition hover:opacity-80 ${aspect === "landscape" ? "bg-purple-600" : "bg-transparent"
+                        disabled={isRecording}
+                        className={`flex items-center gap-2 px-3 py-3 rounded-full text-sm transition ${aspect === "landscape"
+                            ? "bg-purple-600 text-white"
+                            : isRecording
+                                ? "bg-transparent text-[#3A3A3A]"
+                                : "bg-transparent text-white hover:opacity-80"
                             }`}
                     >
-                        <RectangleHorizontal />
+                        <RectangleHorizontal
+                            className={`${aspect === "landscape"
+                                ? "text-white"
+                                : isRecording
+                                    ? "text-[#3A3A3A]"
+                                    : "text-white"
+                                }`}
+                        />
                         16:9
                     </button>
                 </div>

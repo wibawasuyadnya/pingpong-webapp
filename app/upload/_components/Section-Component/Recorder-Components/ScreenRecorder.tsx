@@ -1,6 +1,13 @@
 "use client";
-import React, { useImperativeHandle, useRef, useState, forwardRef, Fragment } from "react";
+import React, {
+    useImperativeHandle,
+    useRef,
+    useState,
+    forwardRef,
+    Fragment,
+} from "react";
 import ScreenRecorderWithCam from "./ScreenRecorder-Components/ScreenRecorderWithCam";
+import FakeScreenPrompt from "./ScreenRecorder-Components/FakeScreenPrompt";
 
 export interface ScreenRecorderHandle {
     startRecording: () => Promise<void>;
@@ -9,12 +16,23 @@ export interface ScreenRecorderHandle {
     isRecording: boolean;
 }
 
-const ScreenRecorder = forwardRef<ScreenRecorderHandle, {}>((_props, ref) => {
-    const [isRecording, setIsRecording] = useState(false);
+export interface CameraRecorderProps {
+    onRecordingStatusChange?: (isRecording: boolean) => void;
+}
+
+type DisplaySurfaceOption = "monitor" | "window" | "browser";
+
+const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(({ onRecordingStatusChange }, ref) => {
+    // Recording phase can be "idle", "countdown", or "recording"
+    const [recordingPhase, setRecordingPhase] = useState<"idle" | "countdown" | "recording">("idle");
+    const [countdown, setCountdown] = useState<number | null>(null);
     const [isPaused, setIsPaused] = useState(false);
     const [timer, setTimer] = useState(0);
     const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    // showUI now controls the camera overlay; it’s only shown after the native prompt and during recording.
+    const [showUI, setShowUI] = useState(false);
+    const [showScreenPrompt, setShowScreenPrompt] = useState(false);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const recordedChunksRef = useRef<Blob[]>([]);
@@ -24,22 +42,22 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, {}>((_props, ref) => {
     const audioContextRef = useRef<AudioContext | null>(null);
     const destinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
 
-    const startRecording = async () => {
-        try {
-            // Capture screen video (and optionally system audio)
-            const displayStream = await navigator.mediaDevices.getDisplayMedia({
-                video: true,
-                audio: false, // Set to false to exclude system audio; we'll add mic audio separately
-            });
-            streamRef.current = displayStream;
+    // Returns the display stream using the chosen mode.
+    const getDisplayStream = async (mode: DisplaySurfaceOption) => {
+        return await navigator.mediaDevices.getDisplayMedia({
+            video: { displaySurface: mode },
+            audio: false,
+        });
+    };
 
-            // Capture microphone audio
-            const micStream = await navigator.mediaDevices.getUserMedia({
-                audio: true,
-            });
+    // Once the display stream is acquired and the countdown is over,
+    // this function captures the microphone, sets up the recorder, and starts recording.
+    const startRecordingProcess = async () => {
+        setShowUI(true); // show the draggable camera overlay
+        try {
+            const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             micStreamRef.current = micStream;
 
-            // Prefer MP4 with H.264 codec, fallback to WebM
             const preferredMimeType = "video/mp4; codecs=avc1";
             const fallbackMimeType = "video/webm; codecs=vp9";
             const mimeType = MediaRecorder.isTypeSupported(preferredMimeType)
@@ -48,16 +66,15 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, {}>((_props, ref) => {
                     ? fallbackMimeType
                     : "video/webm";
 
-            // Mix screen video with microphone audio
+            // Create an AudioContext to mix mic audio with screen video.
             audioContextRef.current = new AudioContext();
             destinationRef.current = audioContextRef.current.createMediaStreamDestination();
-
             const micSource = audioContextRef.current.createMediaStreamSource(micStream);
             micSource.connect(destinationRef.current);
 
-            // Combine screen video with microphone audio
+            // Combine the display stream (already in streamRef) with the audio track.
             const combinedStream = new MediaStream([
-                ...displayStream.getVideoTracks(),
+                ...streamRef.current!.getVideoTracks(),
                 ...destinationRef.current.stream.getAudioTracks(),
             ]);
 
@@ -76,7 +93,8 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, {}>((_props, ref) => {
                 const url = URL.createObjectURL(blob);
                 setRecordedBlob(blob);
                 setPreviewUrl(url);
-                setIsRecording(false);
+                setRecordingPhase("idle");
+                setShowUI(false);
                 cleanupStreams();
             };
 
@@ -84,30 +102,68 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, {}>((_props, ref) => {
                 console.error("MediaRecorder error:", event);
             };
 
-            // Log track endings for debugging
+            // Stop the recording if any track ends unexpectedly.
             combinedStream.getTracks().forEach((track) => {
                 track.onended = () => {
-                    console.log(`${track.kind} track ended.`);
                     if (mediaRecorderRef.current?.state === "recording") {
                         mediaRecorderRef.current.stop();
                     }
                 };
             });
 
-            mediaRecorder.start(1000); // Timeslice for periodic dataavailable events
-            setIsRecording(true);
+            mediaRecorder.start(1000);
             timerIntervalRef.current = setInterval(() => {
                 setTimer((prev) => prev + 1);
             }, 1000);
         } catch (error) {
-            console.error("Error starting recording:", error);
-            setIsRecording(false);
+            console.error("Error during recording process:", error);
             cleanupStreams();
+            setRecordingPhase("idle");
+            setShowUI(false);
+        }
+    };
+
+    // When the FakeScreenPrompt confirms a mode, first call the native prompt,
+    // then start a countdown, and finally begin recording.
+    const handleScreenPromptConfirm = async (dummyImage: string, mode: DisplaySurfaceOption) => {
+        setShowScreenPrompt(false);
+        try {
+            const displayStream = await getDisplayStream(mode);
+            streamRef.current = displayStream; // native prompt completed here
+            // Now start a countdown before beginning the recording.
+            setRecordingPhase("countdown");
+            let count = 3;
+            setCountdown(count);
+            const interval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    setCountdown(count);
+                } else {
+                    clearInterval(interval);
+                    setCountdown(null);
+                    setRecordingPhase("recording");
+                    void startRecordingProcess();
+                }
+            }, 1000);
+        } catch (error) {
+            console.error("Error with native prompt:", error);
+            setRecordingPhase("idle");
+            setShowUI(false);
+        }
+    };
+
+    // Clicking the record button when idle opens the fake prompt.
+    // When already recording, it stops the recording.
+    const initiateRecording = async () => {
+        if (recordingPhase === "idle") {
+            setShowScreenPrompt(true);
+        } else if (recordingPhase === "recording") {
+            stopRecording();
         }
     };
 
     const stopRecording = () => {
-        if (mediaRecorderRef.current && isRecording) {
+        if (mediaRecorderRef.current && recordingPhase === "recording") {
             mediaRecorderRef.current.stop();
             if (timerIntervalRef.current) {
                 clearInterval(timerIntervalRef.current);
@@ -118,20 +174,38 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, {}>((_props, ref) => {
         }
     };
 
-    const downloadRecording = () => {
-        if (recordedBlob && previewUrl) {
-            const extension = recordedBlob.type.includes("mp4") ? "mp4" : "webm";
-            const a = document.createElement("a");
-            a.href = previewUrl;
-            a.download = `screen-recording.${extension}`;
-            a.click();
+    const onPause = () => {
+        if (mediaRecorderRef.current && recordingPhase === "recording") {
+            mediaRecorderRef.current.pause();
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            setIsPaused(true);
         }
     };
 
-    const closePreview = () => {
-        setPreviewUrl(null);
+    const onResume = () => {
+        if (mediaRecorderRef.current && recordingPhase === "recording") {
+            mediaRecorderRef.current.resume();
+            timerIntervalRef.current = setInterval(() => {
+                setTimer((prev) => prev + 1);
+            }, 1000);
+            setIsPaused(false);
+        }
+    };
+
+    const onClose = () => {
+        if (mediaRecorderRef.current && recordingPhase === "recording") {
+            mediaRecorderRef.current.stop();
+        }
+        setRecordingPhase("idle");
+        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+        setTimer(0);
         setRecordedBlob(null);
-        cleanupStreams();
+        setPreviewUrl(null);
+        setShowUI(false);
+        setCountdown(null);
+        setIsPaused(false);
+        setShowScreenPrompt(false);
+        onRecordingStatusChange?.(false);
     };
 
     const cleanupStreams = () => {
@@ -151,47 +225,51 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, {}>((_props, ref) => {
     };
 
     useImperativeHandle(ref, () => ({
-        startRecording,
+        startRecording: initiateRecording,
         stopRecording,
         recordedBlob,
-        isRecording,
+        isRecording: recordingPhase === "recording",
     }));
 
     return (
         <Fragment>
             <ScreenRecorderWithCam
-                isRecording={isRecording}
+                isRecording={recordingPhase === "recording"}
                 isPaused={isPaused}
                 timer={timer}
+                countdown={countdown}
+                onRecordButtonClick={initiateRecording}
                 onStop={stopRecording}
-                onPause={() => mediaRecorderRef.current?.pause() && setIsPaused(true)}
-                onResume={() => mediaRecorderRef.current?.resume() && setIsPaused(false)}
-                onRetry={async () => {
-                    stopRecording();
-                    await startRecording();
-                }}
-                onClose={closePreview}
+                onPause={onPause}
+                onResume={onResume}
+                onClose={onClose}
+                showUI={showUI || recordingPhase === "countdown"}
             />
-
+            {showScreenPrompt && (
+                <FakeScreenPrompt
+                    onClose={() => setShowScreenPrompt(false)}
+                    onConfirm={handleScreenPromptConfirm}
+                />
+            )}
             {previewUrl && recordedBlob && (
                 <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[9999]">
                     <div className="bg-white p-4 rounded-lg w-[500px] flex flex-col gap-3">
                         <h3 className="text-lg font-bold">Recording Preview</h3>
-                        <video
-                            src={previewUrl}
-                            controls
-                            autoPlay
-                            className="w-full h-auto"
-                        />
+                        <video src={previewUrl} controls autoPlay className="w-full h-auto" />
                         <div className="flex justify-end gap-3">
-                            <button
-                                onClick={closePreview}
-                                className="px-4 py-2 bg-gray-300 rounded"
-                            >
+                            <button onClick={onClose} className="px-4 py-2 bg-gray-300 rounded">
                                 Close
                             </button>
                             <button
-                                onClick={downloadRecording}
+                                onClick={() => {
+                                    if (recordedBlob) {
+                                        const extension = recordedBlob.type.includes("mp4") ? "mp4" : "webm";
+                                        const a = document.createElement("a");
+                                        a.href = previewUrl;
+                                        a.download = `screen-recording.${extension}`;
+                                        a.click();
+                                    }
+                                }}
                                 className="px-4 py-2 bg-blue-500 text-white rounded"
                             >
                                 Download

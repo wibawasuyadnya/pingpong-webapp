@@ -41,8 +41,8 @@ export default function Section() {
                             <button
                                 onClick={() => setSelectedRecordingType("camera")}
                                 className={`flex flex-row items-center gap-2 py-3 px-5 w-[400px] rounded-lg border ${selectedRecordingType === "camera"
-                                        ? "border-[#B14AE2] bg-[#F9F4FF]"
-                                        : "border-gray-300"
+                                    ? "border-[#B14AE2] bg-[#F9F4FF]"
+                                    : "border-gray-300"
                                     }`}
                             >
                                 {selectedRecordingType === "camera" ? (
@@ -55,8 +55,8 @@ export default function Section() {
                             <button
                                 onClick={() => setSelectedRecordingType("screen")}
                                 className={`flex flex-row items-center gap-2 py-3 px-5 w-[400px] rounded-lg border ${selectedRecordingType === "screen"
-                                        ? "border-[#B14AE2] bg-[#F9F4FF]"
-                                        : "border-gray-300"
+                                    ? "border-[#B14AE2] bg-[#F9F4FF]"
+                                    : "border-gray-300"
                                     }`}
                             >
                                 {selectedRecordingType === "screen" ? (

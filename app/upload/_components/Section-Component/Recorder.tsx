@@ -56,9 +56,15 @@ const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
         return (
             <div className="space-y-5">
                 {mode === "camera" ? (
-                    <CameraRecorder ref={cameraRecorderRef} />
+                    <CameraRecorder
+                        ref={cameraRecorderRef}
+                        onRecordingStatusChange={onRecordingStatusChange}
+                    />
                 ) : (
-                    <ScreenRecorder ref={screenRecorderRef} />
+                    <ScreenRecorder
+                        ref={screenRecorderRef}
+                        onRecordingStatusChange={onRecordingStatusChange}
+                    />
                 )}
             </div>
         );

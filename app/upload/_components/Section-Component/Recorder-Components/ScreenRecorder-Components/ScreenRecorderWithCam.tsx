@@ -2,37 +2,40 @@
 import React, { useState, useRef, useEffect } from "react";
 import Webcam from "react-webcam";
 import Draggable from "react-draggable";
-import { RotateCcw, Pause, Play, X } from "lucide-react";
+import { Pause, Play, X, Square } from "lucide-react";
 
 interface ScreenRecorderWithCamProps {
     isRecording: boolean;
     isPaused: boolean;
     timer: number;
-    onStop: () => void;
+    countdown: number | null;
+    onRecordButtonClick: () => void;
+    onStop?: () => void;
     onPause: () => void;
     onResume: () => void;
-    onRetry: () => void;
+    onRetry?: () => void;
     onClose: () => void;
+    showUI: boolean;
 }
 
 export default function ScreenRecorderWithCam({
     isRecording,
     isPaused,
     timer,
-    onStop,
+    countdown,
+    onRecordButtonClick,
     onPause,
     onResume,
-    onRetry,
     onClose,
+    showUI,
 }: ScreenRecorderWithCamProps) {
     const [showCameraOverlay, setShowCameraOverlay] = useState(false);
     const webcamRef = useRef<Webcam>(null);
-    // Explicitly type the ref as RefObject<HTMLElement> and assert non-null later
     const draggableRef = useRef<HTMLElement>(null) as React.RefObject<HTMLElement>;
 
     useEffect(() => {
-        setShowCameraOverlay(isRecording);
-    }, [isRecording]);
+        setShowCameraOverlay(isRecording || showUI);
+    }, [isRecording, showUI]);
 
     const formatTime = (sec: number) => {
         const m = Math.floor(sec / 60).toString().padStart(2, "0");
@@ -40,7 +43,7 @@ export default function ScreenRecorderWithCam({
         return `${m}:${s}`;
     };
 
-    if (!isRecording && !showCameraOverlay) return null;
+    if (!showUI && !isRecording && !showCameraOverlay) return null;
 
     return (
         <Draggable nodeRef={draggableRef}>
@@ -61,36 +64,40 @@ export default function ScreenRecorderWithCam({
                     </div>
                 )}
 
-                {isRecording && (
-                    <div className="flex flex-row justify-center items-center">
-                        <div className="flex items-center justify-center gap-5 bg-black rounded-full px-10 py-2">
-                            <RotateCcw onClick={onRetry} className="text-white cursor-pointer" />
-                            <div className="text-white px-2 py-1 rounded text-base font-bold">
-                                {formatTime(timer)}
-                            </div>
-                            <button
-                                onClick={onStop}
-                                className="bg-red-500 text-white border-[3px] border-white w-10 h-10 rounded-full transition hover:opacity-80"
-                            />
-                            {!isPaused ? (
-                                <div
-                                    onClick={onPause}
-                                    className="rounded-full border-white border-[3px] p-2 cursor-pointer"
-                                >
-                                    <Pause className="text-white" />
+                <div className="flex flex-row justify-center items-center">
+                    <div className="flex items-center justify-center gap-5 bg-black rounded-full px-10 py-2">
+                        <button
+                            onClick={onRecordButtonClick}
+                            className="transition hover:opacity-80"
+                            title={!isRecording ? "Start Recording" : "Stop Recording"}
+                        >
+                            {countdown !== null ? (
+                                <div className="bg-red-500 text-white border-[3px] border-white w-10 h-10 rounded-full flex items-center justify-center text-lg font-black">
+                                    {countdown}
+                                </div>
+                            ) : isRecording ? (
+                                <div className="bg-red-500 rounded-full p-[10px]">
+                                    <Square className="bg-white text-white border-[3px] border-white rounded-sm" />
                                 </div>
                             ) : (
-                                <div
-                                    onClick={onResume}
-                                    className="rounded-full border-white border-[3px] p-2 cursor-pointer"
-                                >
-                                    <Play className="text-white" />
-                                </div>
+                                <div className="bg-red-500 text-white border-[3px] border-white w-10 h-10 rounded-full" />
                             )}
-                            <X onClick={onClose} className="text-white cursor-pointer" />
+                        </button>
+                        <div className="text-white px-2 py-1 rounded text-base font-bold">
+                            {formatTime(timer)}
                         </div>
+                        {!isPaused ? (
+                            <div onClick={onPause} className="rounded-full border-white border-[3px] p-2 cursor-pointer">
+                                <Pause className="text-white" />
+                            </div>
+                        ) : (
+                            <div onClick={onResume} className="rounded-full border-white border-[3px] p-2 cursor-pointer">
+                                <Play className="text-white" />
+                            </div>
+                        )}
+                        <X onClick={onClose} className="text-white cursor-pointer" />
                     </div>
-                )}
+                </div>
             </section>
         </Draggable>
     );
