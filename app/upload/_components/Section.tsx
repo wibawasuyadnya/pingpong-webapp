@@ -1,4 +1,3 @@
-// Section-Component/Section.tsx
 "use client";
 import React, { useRef, useState } from "react";
 import VideoUploader from "./Section-Component/VideoUploader";
@@ -83,10 +82,11 @@ export default function Section() {
             {/* Video Uploader */}
             <VideoUploader />
 
-            {/* RecorderSection with mode prop */}
+            {/* RecorderSection with mode and recording status callback */}
             <RecorderSection
                 ref={recorderRef}
                 mode={selectedRecordingType as "camera" | "screen"}
+                onRecordingStatusChange={(status) => setIsRecording(status)}
             />
         </div>
     );

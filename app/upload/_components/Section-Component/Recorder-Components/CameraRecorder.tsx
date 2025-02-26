@@ -9,14 +9,7 @@ import React, {
 } from "react";
 import Webcam from "react-webcam";
 import Draggable from "react-draggable";
-import {
-    RotateCcw,
-    Pause,
-    Play,
-    RectangleVertical,
-    RectangleHorizontal,
-    X,
-} from "lucide-react";
+import RecorderControls from "./CameraRecorder-Components/RecorderControl";
 
 export interface CameraRecorderHandle {
     startRecording: () => Promise<void>;
@@ -25,15 +18,19 @@ export interface CameraRecorderHandle {
     isRecording: boolean;
 }
 
-const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
-    const [isRecording, setIsRecording] = useState(false);
-    const [isPaused, setIsPaused] = useState(false);
+const CameraRecorder = forwardRef<CameraRecorderHandle>((_props, ref) => {
+    // Use a combined state for the recording phase.
+    // "idle" = not recording, "countdown" = showing countdown, "recording" = actual recording.
+    const [recordingPhase, setRecordingPhase] = useState<
+        "idle" | "countdown" | "recording"
+    >("idle");
+    // Countdown value (3,2,1) while in countdown phase.
+    const [countdown, setCountdown] = useState<number | null>(null);
     const [recordedMp4, setRecordedMp4] = useState<Blob | null>(null);
     const [showWebcam, setShowWebcam] = useState(false);
     const [showPreview, setShowPreview] = useState(false);
-    const [webcamKey, setWebcamKey] = useState(0);
     const [timer, setTimer] = useState(0);
-    const [isDragging, setIsDragging] = useState(false);
+    // Aspect ratio: "portrait" (9:16) or "landscape" (16:9)
     const [aspect, setAspect] = useState<"portrait" | "landscape">("portrait");
 
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -45,43 +42,45 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
     const animationFrameRef = useRef<number | null>(null);
     const stoppingBecauseOfRetryRef = useRef(false);
 
+    // Dimensions for the draggable preview
     const containerWidth = 600;
     const containerHeight = 600;
     const webcamBoxHeight = 450;
 
+    // Calculate cropping bounding box based on aspect
     const boundingWidth =
         aspect === "portrait" ? (9 / 16) * webcamBoxHeight : containerWidth;
     const boundingHeight =
         aspect === "portrait" ? webcamBoxHeight : (9 / 16) * containerWidth;
-
     const boundingLeft = (containerWidth - boundingWidth) / 2;
     const boundingTop = (webcamBoxHeight - boundingHeight) / 2;
 
+    // Format timer as MM:SS
     const formatTime = (sec: number) => {
         const m = Math.floor(sec / 60).toString().padStart(2, "0");
         const s = (sec % 60).toString().padStart(2, "0");
         return `${m}:${s}`;
     };
 
+    /**
+     * Draw webcam frames onto the hidden canvas for capturing in a custom aspect ratio.
+     */
     const drawFrame = () => {
         if (!canvasRef.current || !webcamRef.current?.video) {
             animationFrameRef.current = requestAnimationFrame(drawFrame);
             return;
         }
-
         const video = webcamRef.current.video as HTMLVideoElement;
         const ctx = canvasRef.current.getContext("2d");
         if (!ctx) {
             animationFrameRef.current = requestAnimationFrame(drawFrame);
             return;
         }
-
         canvasRef.current.width = boundingWidth;
         canvasRef.current.height = boundingHeight;
 
         const videoAspect = video.videoWidth / video.videoHeight;
         const canvasAspect = boundingWidth / boundingHeight;
-
         let srcWidth, srcHeight, srcX, srcY;
         if (videoAspect > canvasAspect) {
             srcHeight = video.videoHeight;
@@ -94,7 +93,6 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
             srcX = 0;
             srcY = (video.videoHeight - srcHeight) / 2;
         }
-
         ctx.drawImage(
             video,
             srcX,
@@ -106,7 +104,6 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
             boundingWidth,
             boundingHeight
         );
-
         animationFrameRef.current = requestAnimationFrame(drawFrame);
     };
 
@@ -124,10 +121,18 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         };
     }, [showWebcam, aspect]);
 
-    const startRecording = async () => {
+    /**
+     * Open the recorder UI (prepare for recording but do not start yet).
+     */
+    const openRecorderUI = async () => {
         setShowPreview(false);
+        setRecordedMp4(null);
+        setTimer(0);
+        setRecordingPhase("idle");
+        setCountdown(null);
         if (!showWebcam) {
             setShowWebcam(true);
+            // Wait until the webcam video is ready
             await new Promise<void>((resolve) => {
                 const checkVideoReady = () => {
                     const vid = webcamRef.current?.video;
@@ -140,21 +145,28 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                 checkVideoReady();
             });
         }
+    };
 
+    /**
+     * Start the MediaRecorder once the countdown is finished.
+     */
+    const startMediaRecorder = () => {
         const originalStream = webcamRef.current?.video?.srcObject as MediaStream;
         if (!originalStream || !canvasRef.current) {
             console.error("No webcam stream or canvas found.");
             return;
         }
 
+        // Capture the webcam video from the canvas and add audio tracks
         const canvasStream = canvasRef.current.captureStream(30);
         originalStream.getAudioTracks().forEach((track) => {
-            canvasStream.addTrack(track); // Add microphone audio to the recording
+            canvasStream.addTrack(track);
         });
 
         const mimeType = MediaRecorder.isTypeSupported("video/mp4; codecs=avc1")
             ? "video/mp4; codecs=avc1"
             : "video/webm; codecs=vp9";
+
         const mediaRecorder = new MediaRecorder(canvasStream, { mimeType });
         mediaRecorderRef.current = mediaRecorder;
         recordedChunksRef.current = [];
@@ -170,9 +182,9 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                 stoppingBecauseOfRetryRef.current = false;
                 return;
             }
-
             const mp4Blob = new Blob(recordedChunksRef.current, { type: mimeType });
             setRecordedMp4(mp4Blob);
+            // Stop all tracks so the webcam is freed
             originalStream.getTracks().forEach((t) => t.stop());
             setShowWebcam(false);
             setShowPreview(true);
@@ -184,35 +196,44 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
             console.error("MediaRecorder error:", event);
         };
 
+        // Start recording with a timeslice of 1 second
         mediaRecorder.start(1000);
-        setIsRecording(true);
-        setIsPaused(false);
-
         timerIntervalRef.current = setInterval(() => {
             setTimer((prev) => prev + 1);
         }, 1000);
     };
 
-    const stopRecording = () => {
-        if (mediaRecorderRef.current && isRecording) {
+    /**
+     * Stop recording.
+     */
+    const stopMediaRecorder = () => {
+        if (mediaRecorderRef.current && recordingPhase === "recording") {
             mediaRecorderRef.current.stop();
-            setIsRecording(false);
-            setIsPaused(false);
+            setRecordingPhase("idle");
+        }
+    };
+
+    /**
+     * Called by the parent to stop recording.
+     */
+    const parentStopRecording = () => {
+        if (recordingPhase === "recording") {
+            stopMediaRecorder();
+        } else {
+            closeRecording();
         }
     };
 
     const pauseRecording = () => {
-        if (mediaRecorderRef.current && isRecording && !isPaused) {
+        if (mediaRecorderRef.current && recordingPhase === "recording") {
             mediaRecorderRef.current.pause();
-            setIsPaused(true);
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         }
     };
 
     const resumeRecording = () => {
-        if (mediaRecorderRef.current && isRecording && isPaused) {
+        if (mediaRecorderRef.current && recordingPhase === "recording") {
             mediaRecorderRef.current.resume();
-            setIsPaused(false);
             timerIntervalRef.current = setInterval(() => {
                 setTimer((prev) => prev + 1);
             }, 1000);
@@ -220,29 +241,30 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
     };
 
     const retryRecording = async () => {
-        if (mediaRecorderRef.current && isRecording) {
+        if (mediaRecorderRef.current && recordingPhase === "recording") {
             stoppingBecauseOfRetryRef.current = true;
             mediaRecorderRef.current.stop();
-            setIsRecording(false);
-            setIsPaused(false);
+            setRecordingPhase("idle");
         }
         setTimer(0);
         setRecordedMp4(null);
         setShowPreview(false);
-        await startRecording();
+        startMediaRecorder();
     };
 
     const closeRecording = () => {
-        if (mediaRecorderRef.current && isRecording) {
+        if (mediaRecorderRef.current && recordingPhase === "recording") {
             mediaRecorderRef.current.stop();
         }
-        setIsRecording(false);
-        setIsPaused(false);
-        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+        setRecordingPhase("idle");
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+        }
         setTimer(0);
         setRecordedMp4(null);
         setShowPreview(false);
         setShowWebcam(false);
+        setCountdown(null);
     };
 
     const downloadRecording = () => {
@@ -257,15 +279,41 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
         }
     };
 
+    /**
+     * When the record button is clicked in idle mode, start a static countdown.
+     * It displays 3, then 2, then 1 (each for 1 second) before starting the recording.
+     */
+    const handleRecordButtonClick = () => {
+        if (recordingPhase === "idle") {
+            setRecordingPhase("countdown");
+            setCountdown(3);
+            let count = 3;
+            const interval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    setCountdown(count);
+                } else {
+                    clearInterval(interval);
+                    setCountdown(null);
+                    setRecordingPhase("recording");
+                    startMediaRecorder();
+                }
+            }, 1000);
+        } else if (recordingPhase === "recording") {
+            stopMediaRecorder();
+        }
+    };
+
     useImperativeHandle(ref, () => ({
-        startRecording,
-        stopRecording,
+        startRecording: openRecorderUI,
+        stopRecording: parentStopRecording,
         recordedBlob: recordedMp4,
-        isRecording,
+        isRecording: recordingPhase === "recording",
     }));
 
     if (!showWebcam && !showPreview) return null;
 
+    // Overlay styles for cropping mask
     const topOverlayStyle = { top: 0, left: 0, width: "100%", height: boundingTop };
     const bottomOverlayStyle = {
         top: boundingTop + boundingHeight,
@@ -287,17 +335,13 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
     };
 
     return (
-        <Draggable
-            nodeRef={draggableRef as React.RefObject<HTMLElement>}
-            onStart={() => setIsDragging(true)}
-            onStop={() => setIsDragging(false)}
-        >
+        <Draggable nodeRef={draggableRef as React.RefObject<HTMLElement>}>
             <div
                 ref={draggableRef}
-                className={`fixed bottom-16 right-16 flex flex-col gap-4 bg-transparent z-[9999] ${isDragging ? "cursor-grabbing" : "cursor-grab"
-                    }`}
+                className="fixed bottom-16 right-16 flex flex-col gap-4 bg-transparent z-[9999]"
                 style={{ width: `${containerWidth}px`, height: `${containerHeight}px` }}
             >
+                {/* --- Top Panel --- */}
                 <div>
                     <div className="rounded-t-lg bg-black px-3 py-2">
                         <span className="font-semibold text-white">Recorder Preview</span>
@@ -306,8 +350,8 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                         {showWebcam && !showPreview && (
                             <Fragment>
                                 <Webcam
-                                    key={webcamKey}
                                     audio={true}
+                                    muted={true}
                                     ref={webcamRef}
                                     className="absolute top-0 left-0 w-full h-full object-cover"
                                     videoConstraints={{ facingMode: "user" }}
@@ -362,55 +406,24 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, {}>((_props, ref) => {
                     </div>
                 </div>
 
+                {/* --- Bottom Control Bar (Child) --- */}
                 {showWebcam && !showPreview && (
-                    <div className="w-full flex flex-row justify-center items-center">
-                        <div className="flex items-center justify-center gap-5 bg-black rounded-full px-10 py-2 w-fit">
-                            <RotateCcw
-                                onClick={retryRecording}
-                                className="text-white size-6 cursor-pointer"
-                            />
-                            <div className="text-white px-2 py-1 rounded text-base font-bold">
-                                {formatTime(timer)}
-                            </div>
-                            {isRecording && (
-                                <button
-                                    onClick={stopRecording}
-                                    className="bg-red-500 text-white border-[3px] border-white w-10 h-10 rounded-full transition hover:opacity-80"
-                                />
-                            )}
-                            {isRecording && !isPaused && (
-                                <div className="rounded-full border-white border-[3px] p-2 cursor-pointer">
-                                    <Pause onClick={pauseRecording} className="text-white size-5" />
-                                </div>
-                            )}
-                            {isRecording && isPaused && (
-                                <div className="rounded-full border-white border-[3px] p-2 cursor-pointer">
-                                    <Play onClick={resumeRecording} className="text-white size-5" />
-                                </div>
-                            )}
-                            <div className="flex items-center gap-1">
-                                <button
-                                    onClick={() => setAspect("portrait")}
-                                    className={`flex flex-row gap-2 justify-center items-center px-3 py-3 text-white rounded-full text-sm transition hover:opacity-80 ${aspect === "portrait" ? "bg-purple-600" : "bg-transparent"
-                                        }`}
-                                >
-                                    <RectangleVertical />
-                                    9:16
-                                </button>
-                                <button
-                                    onClick={() => setAspect("landscape")}
-                                    className={`flex flex-row gap-2 justify-center items-center px-3 py-3 text-white rounded-full text-sm transition hover:opacity-80 ${aspect === "landscape" ? "bg-purple-600" : "bg-transparent"
-                                        }`}
-                                >
-                                    <RectangleHorizontal />
-                                    16:9
-                                </button>
-                            </div>
-                            <X onClick={closeRecording} className="text-white size-6 cursor-pointer" />
-                        </div>
-                    </div>
+                    <RecorderControls
+                        isRecording={recordingPhase === "recording"}
+                        countdown={countdown}
+                        timer={timer}
+                        aspect={aspect}
+                        formatTime={formatTime}
+                        onRetry={retryRecording}
+                        onRecordButtonClick={handleRecordButtonClick}
+                        onPause={pauseRecording}
+                        onResume={resumeRecording}
+                        onChangeAspect={(val) => setAspect(val)}
+                        onClose={closeRecording}
+                    />
                 )}
 
+                {/* Hidden canvas for capturing frames */}
                 <canvas
                     ref={canvasRef}
                     width={boundingWidth}

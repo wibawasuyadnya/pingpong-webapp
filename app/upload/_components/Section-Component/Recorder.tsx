@@ -19,15 +19,15 @@ export interface RecorderSectionHandle {
 
 interface RecorderSectionProps {
     mode: "camera" | "screen";
+    onRecordingStatusChange?: (isRecording: boolean) => void;
 }
 
 const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
-    ({ mode }, ref) => {
+    ({ mode, onRecordingStatusChange }, ref) => {
         const cameraRecorderRef = useRef<CameraRecorderHandle>(null);
         const screenRecorderRef = useRef<ScreenRecorderHandle>(null);
         const [isRecording, setIsRecording] = useState(false);
 
-        // We define two methods for starting and stopping recording.
         const startRecording = async () => {
             if (mode === "camera") {
                 await cameraRecorderRef.current?.startRecording();
@@ -35,6 +35,7 @@ const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
                 await screenRecorderRef.current?.startRecording();
             }
             setIsRecording(true);
+            onRecordingStatusChange?.(true);
         };
 
         const stopRecording = () => {
@@ -44,9 +45,9 @@ const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
                 screenRecorderRef.current?.stopRecording();
             }
             setIsRecording(false);
+            onRecordingStatusChange?.(false);
         };
 
-        // Expose the imperative handle so the parent can call these methods.
         useImperativeHandle(ref, () => ({
             startRecording,
             stopRecording,
