@@ -125,12 +125,12 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(({ 
 
     // When the FakeScreenPrompt confirms a mode, first call the native prompt,
     // then start a countdown, and finally begin recording.
-    const handleScreenPromptConfirm = async (dummyImage: string, mode: DisplaySurfaceOption) => {
+    const handleScreenPromptConfirm = async (_dummyImage: string, mode: DisplaySurfaceOption) => {
         setShowScreenPrompt(false);
         try {
             const displayStream = await getDisplayStream(mode);
-            streamRef.current = displayStream; // native prompt completed here
-            // Now start a countdown before beginning the recording.
+            // native prompt completed here
+            streamRef.current = displayStream; 
             setRecordingPhase("countdown");
             let count = 3;
             setCountdown(count);
@@ -145,12 +145,17 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(({ 
                     void startRecordingProcess();
                 }
             }, 1000);
-        } catch (error) {
-            console.error("Error with native prompt:", error);
+        } catch (error: any) {
+            if (error.name !== "NotAllowedError") {
+                console.error("Error with native prompt:", error);
+            }
+            // Reset the state if the user cancels the native prompt
             setRecordingPhase("idle");
             setShowUI(false);
         }
     };
+
+
 
     // Clicking the record button when idle opens the fake prompt.
     // When already recording, it stops the recording.
