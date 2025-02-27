@@ -39,10 +39,16 @@ export default function Section() {
                         {/* Selection Buttons */}
                         <div className="space-y-4">
                             <button
-                                onClick={() => setSelectedRecordingType("camera")}
+                                onClick={() => {
+                                    if (!isRecording) setSelectedRecordingType("camera");
+                                }}
+                                disabled={isRecording}
                                 className={`flex flex-row items-center gap-2 py-3 px-5 w-[400px] rounded-lg border ${selectedRecordingType === "camera"
                                     ? "border-[#B14AE2] bg-[#F9F4FF]"
                                     : "border-gray-300"
+                                    } ${isRecording && selectedRecordingType !== "camera"
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : ""
                                     }`}
                             >
                                 {selectedRecordingType === "camera" ? (
@@ -53,10 +59,16 @@ export default function Section() {
                                 <h4 className="font-medium text-sm">Camera only</h4>
                             </button>
                             <button
-                                onClick={() => setSelectedRecordingType("screen")}
+                                onClick={() => {
+                                    if (!isRecording) setSelectedRecordingType("screen");
+                                }}
+                                disabled={isRecording}
                                 className={`flex flex-row items-center gap-2 py-3 px-5 w-[400px] rounded-lg border ${selectedRecordingType === "screen"
                                     ? "border-[#B14AE2] bg-[#F9F4FF]"
                                     : "border-gray-300"
+                                    } ${isRecording && selectedRecordingType !== "screen"
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : ""
                                     }`}
                             >
                                 {selectedRecordingType === "screen" ? (

@@ -146,10 +146,10 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(({ 
                 }
             }, 1000);
         } catch (error: any) {
+            onRecordingStatusChange?.(false);
             if (error.name !== "NotAllowedError") {
                 console.error("Error with native prompt:", error);
             }
-            // Reset the state if the user cancels the native prompt
             setRecordingPhase("idle");
             setShowUI(false);
         }
