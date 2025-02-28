@@ -1,15 +1,16 @@
 "use client";
 import React from "react";
 
-type DisplaySurfaceOption = "monitor" | "window" | "browser";
 
 interface FakeScreenPromptProps {
     onClose: () => void;
     onConfirm: (dummyImage: string, mode: DisplaySurfaceOption) => void;
 }
 
+type DisplaySurfaceOption = "monitor" | "window" | "browser";
+
 export default function FakeScreenPrompt({ onClose, onConfirm }: FakeScreenPromptProps) {
-    // Simply return the chosen mode without triggering any native prompt.
+
     const handleModeSelect = (mode: DisplaySurfaceOption) => {
         onConfirm("", mode);
         onClose();

@@ -26,7 +26,6 @@ const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
     ({ mode, onRecordingStatusChange }, ref) => {
         const cameraRecorderRef = useRef<CameraRecorderHandle>(null);
         const screenRecorderRef = useRef<ScreenRecorderHandle>(null);
-        const [isRecording, setIsRecording] = useState(false);
 
         const startRecording = async () => {
             if (mode === "camera") {
@@ -34,7 +33,6 @@ const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
             } else {
                 await screenRecorderRef.current?.startRecording();
             }
-            setIsRecording(true);
             onRecordingStatusChange?.(true);
         };
 
@@ -44,7 +42,6 @@ const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
             } else {
                 screenRecorderRef.current?.stopRecording();
             }
-            setIsRecording(false);
             onRecordingStatusChange?.(false);
         };
 
