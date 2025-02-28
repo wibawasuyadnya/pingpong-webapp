@@ -1,22 +1,24 @@
 "use client";
-import { configureStore } from "@reduxjs/toolkit";
 import {
   TypedUseSelectorHook,
   useDispatch as useAppDispatch,
   useSelector as useAppSelector,
 } from "react-redux";
+import storage from "../safeStorage";
 import rootReducer from "../rootReducers";
+import { configureStore } from "@reduxjs/toolkit";
+import { persistStore, persistReducer } from "redux-persist";
 
-// ----------------------------------------------------------------------
+const persistConfig = {
+  key: "root",
+  storage,
+  whitelist: ["global"],
+};
 
-// Define the root state type using the ReturnType utility of TypeScript
-export type RootState = ReturnType<typeof rootReducer>;
-
-// Define the type for dispatching actions from the store
-export type AppDispatch = typeof store.dispatch;
+const persistedReducer = persistReducer(persistConfig, rootReducer);
 
 const store = configureStore({
-  reducer: rootReducer,
+  reducer: persistedReducer,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
@@ -24,13 +26,14 @@ const store = configureStore({
     }),
 });
 
-// Extract the dispatch function from the store for convenience
+const persistor = persistStore(store);
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+
 const { dispatch } = store;
 
 const useSelector: TypedUseSelectorHook<RootState> = useAppSelector;
-
-// Create a custom useDispatch hook with typed dispatch
 const useDispatch = () => useAppDispatch<AppDispatch>();
 
-// Export the Redux store, dispatch, useSelector, and useDispatch for use in components
-export { store, dispatch, useSelector, useDispatch };
+export { store, dispatch, persistor, useSelector, useDispatch };
