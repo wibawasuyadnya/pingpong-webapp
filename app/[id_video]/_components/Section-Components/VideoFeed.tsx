@@ -134,15 +134,6 @@ export default function VideoFeed({ sources }: VideoFeedProps) {
                                 className={`object-cover rounded-lg ${videoWidthClass}`}
                                 style={{ maxHeight: '100%', maxWidth: '100%' }}
                             />
-                            {/*
-              // Uncomment the button below to enable sound toggling
-              <button
-                onClick={toggleSound}
-                className="absolute top-0 -right-1 z-10 bg-black/50 rounded-full p-2 text-white"
-              >
-                {isSoundEnabled ? <Volume2 /> : <VolumeX />}
-              </button>
-              */}
                         </div>
                     </div>
                 );

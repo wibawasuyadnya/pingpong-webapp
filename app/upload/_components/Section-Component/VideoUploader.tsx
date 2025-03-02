@@ -31,29 +31,36 @@ export default function VideoUploader() {
     fileInputRef.current?.click();
   };
 
+  async function handleSelectedFile(file: File) {
+    // Update local states
+    setSelectedVideo(file);
+    setFileName(file.name);
+    setFileSizeMB(file.size / (1024 * 1024));
+
+    // 1) Convert to base64
+    const base64Video = await fileToBase64(file);
+
+    // 2) Dispatch to Redux
+    dispatch(
+      setVideo({
+        base64Data: base64Video,
+        size: file.size,
+        type: file.type,
+      })
+    );
+
+    // 3) Remove extension, then remove spaces => dashes
+    let baseName = file.name.replace(/\.[^/.]+$/, ""); // remove extension
+    baseName = baseName.replace(/\s+/g, "-");         // replace spaces with '-'
+
+    // 4) Navigate
+    router.push(`/upload/${encodeURIComponent(baseName)}?post=new`);
+  }
+
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith("video/")) {
-      setSelectedVideo(file);
-      setFileName(file.name);
-      setFileSizeMB(file.size / (1024 * 1024));
-
-      // 1) Convert to base64
-      const base64Video = await fileToBase64(file);
-
-      // 2) Dispatch to Redux so post page can display
-      dispatch(
-        setVideo({
-          base64Data: base64Video,
-          size: file.size,
-          type: file.type,
-        })
-      );
-
-      // 3) Navigate to /upload/[video_filename]?post=new
-      // e.g. remove extension from fileName for the route
-      const baseName = file.name.replace(/\.[^/.]+$/, "");
-      router.push(`/upload/${encodeURIComponent(baseName)}?post=new`);
+      await handleSelectedFile(file);
     }
   };
 
@@ -67,27 +74,13 @@ export default function VideoUploader() {
     event.stopPropagation();
     const file = event.dataTransfer.files[0];
     if (file && file.type.startsWith("video/")) {
-      setSelectedVideo(file);
-      setFileName(file.name);
-      setFileSizeMB(file.size / (1024 * 1024));
-
-      // same logic as handleFileChange
-      const base64Video = await fileToBase64(file);
-      dispatch(
-        setVideo({
-          base64Data: base64Video,
-          size: file.size,
-          type: file.type,
-        })
-      );
-      const baseName = file.name.replace(/\.[^/.]+$/, "");
-      router.push(`/upload/${encodeURIComponent(baseName)}?post=new`);
+      await handleSelectedFile(file);
     }
   };
 
   return (
     <div
-      className="bg-white rounded-md h-fit px-5 py-8 space-y-5"
+      className="bg-white rounded-md h-fit px-5 pb-8 space-y-5"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
@@ -121,10 +114,12 @@ export default function VideoUploader() {
           </div>
         ) : (
           <div className="flex flex-col gap-3 justify-center items-center w-full">
-            {/* Simple info, but no real progress here, because the real upload is on the post page */}
+            {/* Simple info, but no real progress here, because real upload is on the post page */}
             <p className="font-semibold text-base">File: {fileName}</p>
             <p className="text-sm">Size: {fileSizeMB.toFixed(2)} MB</p>
-            <p className="text-sm text-gray-600">Redirecting to post page...</p>
+            <p className="text-sm text-gray-600">
+              Redirecting to post page...
+            </p>
           </div>
         )}
       </div>
@@ -140,9 +135,11 @@ export default function VideoUploader() {
           </div>
         </div>
         <div className="flex flex-row gap-4">
-          <Proportions className="size-7" />
+          <span className="icon-[mdi--aspect-ratio] size-7"></span>
           <div className="space-y-2">
-            <h3 className="font-semibold text-lg">Resolutions and aspect ratios</h3>
+            <h3 className="font-semibold text-lg">
+              Resolutions and aspect ratios
+            </h3>
             <p className="font-light text-sm">
               High resolutions are recommended: 1080p.
               <br />

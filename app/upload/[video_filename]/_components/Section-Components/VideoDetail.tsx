@@ -1,30 +1,14 @@
 "use client";
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Player from "next-video/player";
 import { AddCircle } from "iconsax-react";
 import { SendHorizonal } from "lucide-react";
 import usePosterAndBlur from "@/hook/usePosterAndBlur";
-
-
-function base64ToBlob(base64Data: string, contentType = "video/mp4"): Blob {
-    const parts = base64Data.split(",");
-    const byteCharacters = atob(parts[1]); 
-    const byteArrays = [];
-
-    for (let offset = 0; offset < byteCharacters.length; offset += 512) {
-        const slice = byteCharacters.slice(offset, offset + 512);
-        const byteNumbers = new Array(slice.length);
-        for (let i = 0; i < slice.length; i++) {
-            byteNumbers[i] = slice.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        byteArrays.push(byteArray);
-    }
-    return new Blob(byteArrays, { type: contentType });
-}
+import { base64ToBlob } from "@/utils/base64ToBlob";
 
 interface VideoDetailPreviewProps {
-    video_preview: string; // base64 or Blob URL
+    /** base64-encoded string, e.g. "data:video/mp4;base64,AAA..." */
+    video_preview: string;
 }
 
 export default function VideoDetailPreview({ video_preview }: VideoDetailPreviewProps) {
@@ -32,9 +16,25 @@ export default function VideoDetailPreview({ video_preview }: VideoDetailPreview
     const [isUploading, setIsUploading] = useState(false);
     const [uploadSuccess, setUploadSuccess] = useState<boolean | null>(null);
 
+    // Convert the base64 into a blob and object URL
+    const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        // Convert base64 => Blob => object URL
+        const blob = base64ToBlob(video_preview, "video/mp4");
+        const url = URL.createObjectURL(blob);
+        setObjectUrl(url);
+
+        // Cleanup object URL on unmount or when video_preview changes
+        return () => {
+            URL.revokeObjectURL(url);
+        };
+    }, [video_preview]);
+
+    // Generate a poster & blur for the poster view
     const { poster, blurDataURL, videoWidth, videoHeight } = usePosterAndBlur(video_preview, 1);
 
-    // Compute aspect ratio
+    // Calculate aspect ratio
     const aspectRatio = useMemo(() => {
         if (videoWidth && videoHeight && videoHeight !== 0) {
             return videoWidth / videoHeight;
@@ -45,15 +45,16 @@ export default function VideoDetailPreview({ video_preview }: VideoDetailPreview
     // If ratio < 1 => portrait
     const isPortrait = aspectRatio < 1;
 
+    // Example "Send" logic
     async function handleSend() {
         try {
             setIsUploading(true);
             setUploadSuccess(null);
 
-            const myBlob = base64ToBlob(video_preview, "video/mp4");
-
+            // Re-create the blob from base64
+            const blob = base64ToBlob(video_preview, "video/mp4");
             const formData = new FormData();
-            formData.append("video", myBlob, ".mp4");
+            formData.append("video", blob, "myVideo.mp4");
 
             const res = await fetch("/api/video", {
                 method: "POST",
@@ -66,7 +67,6 @@ export default function VideoDetailPreview({ video_preview }: VideoDetailPreview
                 setUploadSuccess(false);
                 return;
             }
-
             console.log("Uploaded to S3 with key:", data.filename);
             setUploadSuccess(true);
         } catch (error) {
@@ -80,6 +80,7 @@ export default function VideoDetailPreview({ video_preview }: VideoDetailPreview
     return (
         <div className="rounded-lg bg-white p-3">
             <div className="bg-white rounded-lg p-3 flex flex-row gap-10 justify-between items-start">
+                {/* Left side form fields */}
                 <div className="space-y-5 w-1/2">
                     <div className="space-y-1 flex-col flex">
                         <label htmlFor="thread_name" className="font-bold text-sm">
@@ -108,9 +109,11 @@ export default function VideoDetailPreview({ video_preview }: VideoDetailPreview
                     </div>
                 </div>
 
+                {/* Right side video preview */}
                 <div className="space-y-5 w-1/2">
                     <h3 className="font-bold">Video preview</h3>
 
+                    {/* Poster or Player */}
                     {!showPlayer ? (
                         <div
                             className={`relative bg-gray-300 flex items-center justify-center cursor-pointer rounded-lg border border-gray-300 overflow-hidden ${isPortrait ? "mx-auto" : ""
@@ -150,12 +153,21 @@ export default function VideoDetailPreview({ video_preview }: VideoDetailPreview
                                 aspectRatio: aspectRatio.toString(),
                             }}
                         >
-                            <Player src={video_preview} controls className="w-full h-full object-cover" />
+                            {objectUrl ? (
+                                <Player
+                                    src={objectUrl}
+                                    controls
+                                    autoPlay
+                                    className="w-full h-full object-cover"
+                                />
+                            ) : (
+                                <p>Loading preview...</p>
+                            )}
                         </div>
                     )}
 
+                    {/* Status messages */}
                     <div className="relative pb-2">
-                        {/* Show a simple success/failure message */}
                         {uploadSuccess === true && (
                             <div className="text-green-500 text-sm absolute right-0">
                                 Upload AWS S3 Successful!
@@ -166,19 +178,18 @@ export default function VideoDetailPreview({ video_preview }: VideoDetailPreview
                                 Upload AWS S3 failed.
                             </div>
                         )}
-
                     </div>
 
-                    <div className="flex flex-row justify-between items-center">
+                    {/* Buttons */}
+                    <div className="flex flex-row justify-between items-center pt-5 pb-10">
                         <button className="py-3 px-5 rounded-lg border-solid border-[#707070] border">
                             Replace
                         </button>
-
                         <div className="relative">
                             <button
                                 onClick={handleSend}
                                 disabled={isUploading}
-                                className="flex flex-row gap-2 py-3 px-5 mt-5 mb-10 rounded-lg bg-[#AF52DE] font-bold text-white"
+                                className="flex flex-row gap-2 py-3 px-5 rounded-lg bg-[#AF52DE] font-bold text-white"
                             >
                                 {isUploading ? "Uploading..." : "Send"}
                                 <SendHorizonal />

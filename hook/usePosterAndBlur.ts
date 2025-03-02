@@ -1,4 +1,3 @@
-// usePosterAndBlur.ts
 "use client";
 import { useEffect, useState } from "react";
 
@@ -9,6 +8,11 @@ interface PosterAndBlur {
   videoHeight: number | null;
 }
 
+/**
+ * Grabs a poster frame from a video at `captureTime` seconds,
+ * generating both a larger "poster" and a small "blurDataURL".
+ * The video is drawn in "contain" mode so it doesn't get cropped for portrait.
+ */
 export default function usePosterAndBlur(videoSrc: string, captureTime = 1): PosterAndBlur {
   const [poster, setPoster] = useState<string | null>(null);
   const [blurDataURL, setBlurDataURL] = useState<string | null>(null);
@@ -39,11 +43,11 @@ export default function usePosterAndBlur(videoSrc: string, captureTime = 1): Pos
 
     videoEl.onseeked = () => {
       // create the main poster
-      const posterData = captureFrame(videoEl, 640, 360);
+      const posterData = captureFrameContain(videoEl, 640, 360);
       setPoster(posterData);
 
       // create the blur
-      const blurData = captureFrame(videoEl, 32, 18);
+      const blurData = captureFrameContain(videoEl, 32, 18);
       setBlurDataURL(blurData);
     };
 
@@ -54,13 +58,49 @@ export default function usePosterAndBlur(videoSrc: string, captureTime = 1): Pos
     };
   }, [videoSrc, captureTime]);
 
-  function captureFrame(video: HTMLVideoElement, width: number, height: number) {
+  /**
+   * Draws the current frame of `video` onto a canvas of `targetWidth × targetHeight`
+   * using a "contain" approach (no cropping for portrait).
+   */
+  function captureFrameContain(
+    video: HTMLVideoElement,
+    targetWidth: number,
+    targetHeight: number
+  ): string {
     const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return "";
-    ctx.drawImage(video, 0, 0, width, height);
+
+    // Original video dimensions
+    const vidW = video.videoWidth;
+    const vidH = video.videoHeight;
+    if (!vidW || !vidH) return "";
+
+    // We want to scale so that the entire video fits within targetWidth × targetHeight
+    const videoAspect = vidW / vidH;
+    const canvasAspect = targetWidth / targetHeight;
+
+    let drawWidth = targetWidth;
+    let drawHeight = targetHeight;
+
+    // "Contain" approach
+    if (videoAspect > canvasAspect) {
+      // Video is wider, so we fit by width
+      drawWidth = targetWidth;
+      drawHeight = drawWidth / videoAspect;
+    } else {
+      // Video is taller (or equal), so we fit by height
+      drawHeight = targetHeight;
+      drawWidth = drawHeight * videoAspect;
+    }
+
+    // Center the image
+    const offsetX = (targetWidth - drawWidth) / 2;
+    const offsetY = (targetHeight - drawHeight) / 2;
+
+    ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
     return canvas.toDataURL("image/jpeg", 0.7);
   }
 

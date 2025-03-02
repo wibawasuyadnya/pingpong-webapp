@@ -83,6 +83,7 @@ export default function Section({ videoFilename, post }: SectionProps) {
         return new Blob(byteArrays, { type: contentType });
     }
 
+
     // Handler for "Send" button
     const handleSend = () => {
         if (!base64Data) return;
@@ -137,39 +138,6 @@ export default function Section({ videoFilename, post }: SectionProps) {
 
             {/* Show local preview from base64 */}
             <VideoDetailPreview video_preview={base64Data} />
-
-            {/* Real progress bar */}
-            <div className="mt-4 space-y-2 max-w-md">
-                <button
-                    onClick={handleSend}
-                    disabled={uploading || uploadDone}
-                    className="px-5 py-2 bg-blue-500 text-white rounded"
-                >
-                    {uploadDone
-                        ? "Upload Complete"
-                        : uploading
-                            ? `Uploading... ${progress}%`
-                            : "Send"}
-                </button>
-
-                {/* progress bar */}
-                {uploading || uploadDone ? (
-                    <div className="w-full bg-gray-300 h-4 rounded-full overflow-hidden">
-                        <div
-                            className="bg-green-500 h-full"
-                            style={{ width: `${progress}%` }}
-                        />
-                    </div>
-                ) : null}
-
-                {errorMessage && (
-                    <p className="text-red-500 text-sm">{errorMessage}</p>
-                )}
-
-                {uploadDone && !errorMessage && (
-                    <p className="text-green-600 text-sm">Upload succeeded!</p>
-                )}
-            </div>
         </div>
     );
 }
