@@ -2,6 +2,7 @@
 import { useRouter, usePathname } from 'next/navigation';
 import React, { useRef, useEffect, useState } from 'react';
 import VideoFeedPlayer from './VideoFeed-Components/VideoPlayer';
+import SideControlBar from './VideoFeed-Components/SideControlBar';
 
 interface VideoSource {
     id: string;
@@ -144,18 +145,10 @@ export default function VideoFeed({ sources }: VideoFeedProps) {
             className="h-[650px] overflow-y-scroll snap-y snap-mandatory no-scrollbar"
             style={{ overscrollBehavior: 'contain' }}
         >
-            {/* Sound Toggle Button */}
-            <button
-                onClick={toggleSound}
-                className="fixed top-4 right-4 bg-black bg-opacity-50 p-3 text-white rounded-lg z-20"
-            >
-                {isSoundEnabled ? '🔊 Sound On' : '🔇 Muted'}
-            </button>
-
             {sources.map((video, index) => {
                 const videoWidthClass = video.orientation === 'portrait' ? 'w-[350px]' : 'w-[800px]';
                 const containerPaddingClass = video.orientation === 'landscape' ? 'p-4' : '';
-                const controlsBottomClass = video.orientation === 'portrait' ? 'bottom-0 -right-15' : 'bottom-5 -right-12';
+                const controlsBottomClass = video.orientation === 'portrait' ? 'bottom-0 -right-16' : 'bottom-5 -right-13';
                 return (
                     <div
                         key={video.id}
@@ -171,17 +164,7 @@ export default function VideoFeed({ sources }: VideoFeedProps) {
                                     if (el) el.muted = !isSoundEnabled;
                                 }}
                             />
-                            <div className={`absolute ${controlsBottomClass} z-10 flex flex-col items-center space-y-4`}>
-                                <button className="bg-black bg-opacity-50 p-2 rounded-full text-white">
-                                    ❤️
-                                </button>
-                                <button className="bg-black bg-opacity-50 p-2 rounded-full text-white">
-                                    💬
-                                </button>
-                                <button className="bg-black bg-opacity-50 p-2 rounded-full text-white">
-                                    🔖
-                                </button>
-                            </div>
+                            <SideControlBar controlsBottomClass={controlsBottomClass} />
                         </div>
                     </div>
                 );
