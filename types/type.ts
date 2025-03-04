@@ -53,3 +53,27 @@ export type LoginResponse = {
   };
 };
 
+export type Video = {
+  id: string;
+  thread_name: string;
+  title: string;
+  user: { [key: string]: any }; 
+  video_url: string;
+  created_at: string;
+  is_favorite: boolean;
+  is_reply_video: boolean;
+  is_front_camera: boolean;
+  is_from_gallery: boolean;
+  is_draft: boolean;
+  is_own_video: boolean;
+  is_thread_owner_video: boolean;
+  has_srt: boolean;
+  srt_file: string;
+  total_comment: number;
+  duration: string;
+  my_emoji_reaction: string;
+  my_watch_duration: string;
+  is_reminder_active: boolean;
+  has_reminders: boolean;
+}
+

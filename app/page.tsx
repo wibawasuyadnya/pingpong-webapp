@@ -16,7 +16,7 @@ async function getLatestVideoId({ session }: { session: SessionData }): Promise<
   const res = await fetch(`${apiUrl}/api/video?${params.toString()}`, {
     method: "GET",
     headers,
-  });
+  }); 
 
   if (!res.ok) {
     throw new Error("Failed to fetch video list");
