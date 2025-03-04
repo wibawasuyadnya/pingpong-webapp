@@ -9,13 +9,11 @@ async function getSessionUser() {
     return {
       isLoggedIn: true,
       user: await encrypt(JSON.stringify(session.user)), 
-      timerStartTime: session.timerStartTime,
     };
   }
   return {
     isLoggedIn: false,
     user: null,
-    timerStartTime: session.timerStartTime,
   };
 }
 

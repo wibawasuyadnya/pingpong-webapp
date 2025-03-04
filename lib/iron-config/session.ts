@@ -8,7 +8,6 @@ declare module "iron-session" {
   interface IronSessionData {
     user?: User;
     isLoggedIn?: boolean;
-    timerStartTime: number;
   }
 }
 

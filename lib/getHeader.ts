@@ -1,15 +1,16 @@
 "use server";
 import { User } from "@/types/type";
+import { secretKey } from "@/utils/envConfig";
 import { decrypt } from "@/utils/sessionEncryption";
 
 interface GetHeaderProps {
   user?: User | string | null;
-  data?: Record<string, unknown> | string;
 }
 
-export default async function getHeader({ user, data }: GetHeaderProps) {
+export default async function getHeader({ user }: GetHeaderProps) {
   let user_token = "";
   let decrypt_data: User | null = null;
+  const secret = secretKey;
 
   if (typeof user === "string") {
     try {
@@ -24,6 +25,7 @@ export default async function getHeader({ user, data }: GetHeaderProps) {
 
   const headers: { [key: string]: string } = {
     Accept: "application/json",
+    "Api-Access-Key": `${secret}`,
   };
 
   if (user_token) {

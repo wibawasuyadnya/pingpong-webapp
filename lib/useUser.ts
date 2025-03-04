@@ -5,19 +5,17 @@ import fetcher from "./fetchJson";
 interface UseUserProps {
   redirectTo?: string;
   redirectIfFound?: boolean;
-  username?: string;
-  first_name?: string;
-  last_name?: string;
+  name?: string;
   email?: string;
+  phone_number?: string;
   access_token?: string;
 }
 
 export async function useUser({
   redirectTo = "",
   redirectIfFound = false,
-  username,
-  first_name,
-  last_name,
+  name,
+  phone_number,
   email,
   access_token,
 }: UseUserProps = {}) {
@@ -32,10 +30,9 @@ export async function useUser({
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      username,
-      first_name,
-      last_name,
+      name,
       email,
+      phone_number,
       access_token,
     }),
   });

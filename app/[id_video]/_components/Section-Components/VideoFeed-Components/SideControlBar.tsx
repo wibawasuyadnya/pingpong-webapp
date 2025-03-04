@@ -7,13 +7,13 @@ export default function SideControlBar({
     return (
         <div className={`absolute ${controlsBottomClass} z-10 flex flex-col items-center space-y-4`}>
             <button className="bg-black bg-opacity-50 p-3 rounded-full text-white">
-                <ThumbsUp size={25} />
+                <ThumbsUp size={20} />
             </button>
             <button className="bg-black bg-opacity-50 p-3 rounded-full text-white">
-                <MessageSquareText size={25} />
+                <MessageSquareText size={20} />
             </button>
             <button className="bg-black bg-opacity-50 p-3 rounded-full text-white">
-                <Bookmark size={25} />
+                <Bookmark size={20} />
             </button>
         </div>
     )

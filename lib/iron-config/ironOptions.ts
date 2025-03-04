@@ -1,4 +1,3 @@
-
 import { ironSessionPassword } from "@/utils/envConfig";
 import { SessionOptions } from "iron-session";
 
@@ -12,7 +11,7 @@ export async function getIronOptions(): Promise<SessionOptions> {
 
   return {
     password: ironSessionPassword,
-    cookieName: "predikGame_App",
+    cookieName: "webapp_PingPong",
     cookieOptions: {
       secure: process.env.NEXT_PUBLIC_APP_ENV === "prod",
     },

@@ -1,15 +1,16 @@
 import { NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
+import { awsAccessKeyId, awsBucket, awsDefaultRegion, awsSecretAccessKey } from "@/utils/envConfig";
 
 const s3 = new S3Client({
-  region: process.env.AWS_DEFAULT_REGION!,
+  region: awsDefaultRegion!,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    accessKeyId: awsAccessKeyId!,
+    secretAccessKey: awsSecretAccessKey!,
   },
 });
-const BUCKET_NAME = process.env.AWS_BUCKET!;
+const BUCKET_NAME = awsBucket!;
 
 export async function POST(request: Request) {
   try {
