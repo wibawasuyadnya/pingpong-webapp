@@ -175,6 +175,34 @@ export default function VideoPlayer({
         }
     };
 
+    // Thumbnail generation with error handling
+    const generateThumbnail = (time: number) => {
+        const videoEl = thumbnailVideoRef.current;
+        if (!videoEl || !duration) return;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 90;
+        canvas.height = 160;
+        const ctx = canvas.getContext('2d');
+
+        videoEl.currentTime = time;
+        videoEl.onseeked = () => {
+            if (ctx) {
+                try {
+                    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+                    setThumbnailUrl(canvas.toDataURL('image/jpeg'));
+                } catch (err) {
+                    console.error('Failed to generate thumbnail:', err);
+                    setThumbnailUrl(null); // Fallback to no thumbnail
+                }
+            }
+        };
+        videoEl.onerror = () => {
+            console.error('Thumbnail video error');
+            setThumbnailUrl(null);
+        };
+    };
+
     const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!isHovered) return;
         const newTime = parseFloat(e.target.value);
@@ -192,6 +220,9 @@ export default function VideoPlayer({
         const clampedPosition = Math.max(thumbnailWidth / 2, Math.min(offsetX, rect.width - thumbnailWidth / 2));
         setHoverTime(newHoverTime);
         setThumbnailPosition(clampedPosition);
+        if (!video.thumbnailSprite && !video.thumbnailUrl) {
+            generateThumbnail(newHoverTime);
+        }
     };
 
     useEffect(() => {
@@ -330,10 +361,10 @@ export default function VideoPlayer({
                     )}
                     <span className="text-white font-bold">{video.authorName || 'Unknown'}</span>
                 </div>
-                {/* Instead of video.description, display parsed captions */}
+
                 {/* Caption Overlay */}
                 {currentCaption && (
-                    <p className=" bg-purple-600 bg-opacity-75 text-white px-4 py-2 rounded-md text-left line-clamp w-fit">
+                    <p className="bg-purple-600 bg-opacity-75 text-white px-3 py-1 rounded-md text-left">
                         {currentCaption}
                     </p>
                 )}
