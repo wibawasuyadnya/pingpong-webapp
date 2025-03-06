@@ -1,3 +1,4 @@
+// app/[id_video]/_components/Section-Components/VideoFeed.tsx
 'use client';
 import { useRouter, useParams } from 'next/navigation';
 import React, { useRef, useEffect, useMemo, useCallback, useState, Fragment } from 'react';
@@ -6,6 +7,8 @@ import SideControlBar from './VideoFeed-Components/SideControlBar';
 import VideoPlayer from './VideoFeed-Components/VideoPlayer';
 import NavigationArrows from './VideoFeed-Components/NavigatorArrow';
 import VideoSkeleton from './VideoFeed-Components/VideoSkeleton';
+import { ChevronRight } from 'lucide-react';
+import UploadButton from './VideoFeed-Components/UploadButton';
 
 interface VideoFeedProps {
     videos: Video[];
@@ -181,8 +184,16 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
         }
     };
 
+
+    function trimThreadName(threadName: string, maxWords = 5): string {
+        const words = threadName.split(/\s+/);
+        return words.length > maxWords ? words.slice(0, maxWords).join(' ') + '...' : threadName;
+    }
+
+
     // Render logic
     const renderContent = () => {
+
         if (isInitialLoading || (currentVideoId && !isTargetVideoLoaded)) {
             return (
                 <div className="w-full h-[650px] flex items-center justify-center">
@@ -195,16 +206,16 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
             <Fragment>
                 <div
                     ref={containerRef}
-                    className="h-[650px] overflow-y-scroll snap-y snap-mandatory no-scrollbar"
+                    className="h-[650px] overflow-y-scroll snap-y snap-mandatory no-scrollbar relative"
                     style={{ overscrollBehavior: 'contain' }}
                 >
                     {uniqueVideos.map((video, index) => {
                         const containerPaddingClass = 'p-4';
-                        const controlsBottomClass = 'bottom-5 -right-13';
+                        const controlsBottomClass = 'bottom-5 -right-10';
                         return (
                             <div
                                 key={`${video.id}-${index}`}
-                                className={`relative h-[650px] w-full flex items-center justify-center snap-start ${index > 0 ? 'mt-[20px]' : ''}`}
+                                className={`relative h-[650px] w-full flex items-center justify-center snap-start ${index > 0 ? 'mt-[50px]' : ''}`}
                                 style={{ scrollSnapStop: 'always' }}
                             >
                                 <div className={`relative ${containerPaddingClass} w-full max-w-[400px]`}>
@@ -212,10 +223,11 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                                         video={{
                                             id: video.id,
                                             source: video.hls_url || video.video_url,
-                                            orientation: 'landscape',
+                                            orientation: 'portrait',
                                             authorName: video.user.name,
                                             authorProfilePicture: video.user.picture,
                                             description: video.srt_file,
+                                            thread_name: video.thread_name
                                         }}
                                         videoRef={(el) => (videoRefs.current[index] = el)}
                                         isSoundEnabled={true}
@@ -237,6 +249,26 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                     totalVideos={uniqueVideos.length}
                     currentIndex={activeIndex}
                 />
+
+                {/* Heading Video Element */}
+                <div className='w-[370px] flex flex-row justify-between items-center fixed right-[30%] top-[10%] transform -translate-y-1/2 z-20 pl-3 pr-2'>
+                    <div className='flex flex-row justify-start items-center gap-4'>
+                        <h1 className='font-bold text-base'>
+                            {activeIndex !== null && uniqueVideos[activeIndex]
+                                ? trimThreadName(uniqueVideos[activeIndex].thread_name)
+                                : 'Loading...'}
+                        </h1>
+
+                        <ChevronRight className='size-[24px] text-white' />
+                    </div>
+                    <div className='flex flex-row justify-start items-center gap-4'>
+                        <h2 className='font-bold text-base'>Feed</h2>
+                        <span className="icon-[material-symbols--circle] text-[#B14AE2] size-3"></span>
+                    </div>
+                </div>
+
+                {/* Add the UploadButton here */}
+                {activeIndex !== null && uniqueVideos[activeIndex] && <UploadButton activeId={uniqueVideos[activeIndex].id} />}
             </Fragment>
         );
     };

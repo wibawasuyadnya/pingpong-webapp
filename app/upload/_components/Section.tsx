@@ -51,8 +51,8 @@ export default function Section() {
                     className="flex flex-row gap-8 cursor-pointer"
                     onClick={showRecorderPanel}
                 >
-                    <span className="icon-[material-symbols--video-camera-front-outline] size-6"></span>
-                    <h3 className="font-semibold text-base">Record directly from Web app</h3>
+                    <span className="icon-[material-symbols--video-camera-front-outline] size-6 text-black"></span>
+                    <h3 className="font-semibold text-base text-black">Record directly from Web app</h3>
                 </div>
 
                 {/* Body (hidden or shown with motion) */}
@@ -95,7 +95,7 @@ export default function Section() {
                                             ) : (
                                                 <span className="icon-[material-symbols--circle-outline] size-5" />
                                             )}
-                                            <h4 className="font-medium text-sm">Camera only</h4>{" "}
+                                            <h4 className="font-medium text-sm text-black">Camera only</h4>{" "}
                                             <span className="font-normal text-sm text-[#707070]">
                                                 (default)
                                             </span>
@@ -119,7 +119,7 @@ export default function Section() {
                                             ) : (
                                                 <span className="icon-[material-symbols--circle-outline] size-5" />
                                             )}
-                                            <h4 className="font-medium text-sm">Screen Recording</h4>
+                                            <h4 className="font-medium text-sm text-black">Screen Recording</h4>
                                         </button>
                                     </div>
                                 </div>
@@ -147,8 +147,8 @@ export default function Section() {
                     className="flex flex-row gap-8 cursor-pointer"
                     onClick={showUploaderPanel}
                 >
-                    <span className="icon-[material-symbols--upload] size-6"></span>
-                    <h3 className="font-semibold text-base">Upload</h3>
+                    <span className="icon-[material-symbols--upload] size-6 text-black"></span>
+                    <h3 className="font-semibold text-base text-black">Upload</h3>
                 </div>
 
                 {/* Body (hidden or shown with motion) */}

@@ -1,8 +1,9 @@
+// app/[id_video]/_components/Section-Components/VideoFeed-Components/VideoPlayer.tsx
 'use client';
 import Hls from 'hls.js';
 import { ProfileCircle } from 'iconsax-react';
 import { motion } from 'framer-motion';
-import { Volume1, Volume2, VolumeX } from 'lucide-react';
+import { ChevronRight, Volume1, Volume2, VolumeX } from 'lucide-react';
 import React, { useRef, useState, useEffect } from 'react';
 import SrtParser from 'srt-parser-2';
 
@@ -12,9 +13,10 @@ interface VideoData {
     orientation: string;
     authorName?: string;
     authorProfilePicture?: string;
-    description?: string; // URL to the .srt file
+    description?: string;
     thumbnailSprite?: string;
     thumbnailUrl?: string;
+    thread_name?: string;
 }
 
 interface VideoPlayerProps {
@@ -51,13 +53,13 @@ export default function VideoPlayer({
 
     const isHlsSource = video.source.includes('.m3u8');
 
-    // Helper to convert SRT time "00:00:01,000" to seconds
+    // Helper: Convert SRT time to seconds
     const toSeconds = (timeStr: string) => {
         const parts = timeStr.split(/[:,]/).map(Number);
         return parts[0] * 3600 + parts[1] * 60 + parts[2] + parts[3] / 1000;
     };
 
-    // HLS setup and fallback logic
+    // HLS setup and fallback
     useEffect(() => {
         const videoEl = internalVideoRef.current;
         if (!videoEl) return;
@@ -83,10 +85,11 @@ export default function VideoPlayer({
         };
     }, [video.source, isHlsSource]);
 
-    // Autoplay and video event listeners
+    // Autoplay and video event listeners (force muted on load)
     useEffect(() => {
         const videoEl = internalVideoRef.current;
         if (!videoEl) return;
+        // Force muted on initial load for autoplay
         videoEl.muted = !isSoundEnabled;
         videoEl.volume = volume;
         const attemptAutoplay = () => {
@@ -94,7 +97,6 @@ export default function VideoPlayer({
             videoEl.play()
                 .then(() => setIsPlaying(true))
                 .catch((err) => {
-                    console.warn('Autoplay blocked:', err);
                     setIsPlaying(false);
                 });
         };
@@ -115,7 +117,7 @@ export default function VideoPlayer({
         };
     }, [video.source, isSoundEnabled, volume]);
 
-    // Fetch and parse the .srt file using srt-parser-2
+    // Fetch and parse .srt captions using srt-parser-2
     useEffect(() => {
         async function fetchCaptions() {
             try {
@@ -175,6 +177,13 @@ export default function VideoPlayer({
         }
     };
 
+    const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!isHovered) return;
+        const newTime = parseFloat(e.target.value);
+        setCurrentTime(newTime);
+        if (internalVideoRef.current) internalVideoRef.current.currentTime = newTime;
+    };
+
     // Thumbnail generation with error handling
     const generateThumbnail = (time: number) => {
         const videoEl = thumbnailVideoRef.current;
@@ -201,13 +210,6 @@ export default function VideoPlayer({
             console.error('Thumbnail video error');
             setThumbnailUrl(null);
         };
-    };
-
-    const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!isHovered) return;
-        const newTime = parseFloat(e.target.value);
-        setCurrentTime(newTime);
-        if (internalVideoRef.current) internalVideoRef.current.currentTime = newTime;
     };
 
     const handleProgressHover = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -278,11 +280,10 @@ export default function VideoPlayer({
                 }}
                 src={video.source}
                 loop
-                muted={!isSoundEnabled}
                 playsInline
                 preload="metadata"
                 crossOrigin="anonymous"
-                className="object-cover w-full h-full rounded-xl cursor-pointer"
+                className="object-cover w-full h-[615px] rounded-xl cursor-pointer absolute bottom-0"
             />
 
             {/* Hidden Video Element for Thumbnail Generation */}
@@ -297,7 +298,7 @@ export default function VideoPlayer({
 
             {/* Volume Control */}
             <motion.div
-                className="absolute top-4 left-4 z-10 flex items-center p-2 rounded-full bg-black bg-opacity-50 cursor-pointer"
+                className="absolute top-11 left-2 z-10 flex items-center p-2 rounded-full bg-black bg-opacity-50 cursor-pointer"
                 onHoverStart={() => setIsVolumeHovered(true)}
                 onHoverEnd={() => setIsVolumeHovered(false)}
                 animate={{
@@ -348,7 +349,7 @@ export default function VideoPlayer({
                 </motion.div>
             </motion.div>
 
-            {/* Bottom Overlay with additional controls */}
+            {/* Bottom Overlay with Caption and Author */}
             <div
                 className="absolute bottom-0 left-0 w-full h-32 z-10 px-4 py-3 flex flex-col space-y-2 rounded-b-xl justify-end items-start"
                 style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.8) 100%)' }}
@@ -364,7 +365,7 @@ export default function VideoPlayer({
 
                 {/* Caption Overlay */}
                 {currentCaption && (
-                    <p className="bg-purple-600 bg-opacity-75 text-white px-3 py-1 rounded-md text-left">
+                    <p className="bg-purple-600 bg-opacity-75 text-white px-3 py-1 rounded-md text-left line-clamp-2">
                         {currentCaption}
                     </p>
                 )}

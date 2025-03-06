@@ -1,3 +1,4 @@
+// app/[id_video]/_components/Section.tsx
 'use client';
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import { SessionData, Video } from '@/types/type';

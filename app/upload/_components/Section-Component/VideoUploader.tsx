@@ -95,8 +95,8 @@ export default function VideoUploader() {
 
         {!selectedVideo ? (
           <div className="flex flex-col gap-3 justify-center items-center w-fit">
-            <Upload className="mx-auto size-20" />
-            <h2 className="text-xl font-bold text-center">
+            <Upload className="mx-auto size-20 text-black" />
+            <h2 className="text-xl font-bold text-center text-black">
               Select video to upload
             </h2>
             <p className="text-base text-[#707070] font-normal text-center">
@@ -115,8 +115,8 @@ export default function VideoUploader() {
         ) : (
           <div className="flex flex-col gap-3 justify-center items-center w-full">
             {/* Simple info, but no real progress here, because real upload is on the post page */}
-            <p className="font-semibold text-base">File: {fileName}</p>
-            <p className="text-sm">Size: {fileSizeMB.toFixed(2)} MB</p>
+            <p className="font-semibold text-base text-black">File: {fileName}</p>
+            <p className="text-sm text-black">Size: {fileSizeMB.toFixed(2)} MB</p>
             <p className="text-sm text-gray-600">
               Redirecting to post page...
             </p>
@@ -126,21 +126,21 @@ export default function VideoUploader() {
 
       <div className="flex flex-row justify-between">
         <div className="flex flex-row gap-4">
-          <Video className="size-7" />
+          <Video className="size-7 text-black" />
           <div className="space-y-2">
-            <h3 className="font-semibold text-lg">Size and duration</h3>
-            <p className="font-light text-sm">
+            <h3 className="font-semibold text-lg text-black">Size and duration</h3>
+            <p className="font-light text-sm text-black">
               Maximum size: 500 MB, video duration: 5 minutes.
             </p>
           </div>
         </div>
         <div className="flex flex-row gap-4">
-          <span className="icon-[mdi--aspect-ratio] size-7"></span>
+          <span className="icon-[mdi--aspect-ratio] size-7 text-black"></span>
           <div className="space-y-2">
-            <h3 className="font-semibold text-lg">
+            <h3 className="font-semibold text-lg text-black">
               Resolutions and aspect ratios
             </h3>
-            <p className="font-light text-sm">
+            <p className="font-light text-sm text-black">
               High resolutions are recommended: 1080p.
               <br />
               Ratios recommended: 9:16 vertical or 16:9 landscape
@@ -148,10 +148,10 @@ export default function VideoUploader() {
           </div>
         </div>
         <div className="flex flex-row gap-4">
-          <FileVideo className="size-7" />
+          <FileVideo className="size-7 text-black" />
           <div className="space-y-2">
-            <h3 className="font-semibold text-lg">Video format</h3>
-            <p className="font-light text-sm">
+            <h3 className="font-semibold text-lg text-black">Video format</h3>
+            <p className="font-light text-sm text-black">
               Recommended: “.mp4” and “.mov” are supported file formats.
             </p>
           </div>
