@@ -1,5 +1,6 @@
 import { getSession } from "@/lib/iron-config/session";
 import { NextResponse } from "next/server";
+import { encrypt } from "@/utils/sessionEncryption";
 
 const helper = async (request: Request) => {
   const response = NextResponse.json({});
@@ -8,7 +9,7 @@ const helper = async (request: Request) => {
   if (session.isLoggedIn && session.user) {
     return NextResponse.json({
       isLoggedIn: true,
-      user: session.user,
+      user: await encrypt(JSON.stringify(session.user)),
     });
   }
 

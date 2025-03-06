@@ -57,8 +57,14 @@ export type Video = {
   id: string;
   thread_name: string;
   title: string;
-  user: { [key: string]: any }; 
+  user: {
+    id: string;
+    name: string;
+    picture: string;
+  },
   video_url: string;
+  hls_url: string;
+  thumbnail_url: string;
   created_at: string;
   is_favorite: boolean;
   is_reply_video: boolean;
@@ -76,4 +82,5 @@ export type Video = {
   is_reminder_active: boolean;
   has_reminders: boolean;
 }
+
 

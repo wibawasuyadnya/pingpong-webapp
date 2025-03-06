@@ -1,112 +1,77 @@
-"use client";
-import React, { useState, useEffect, useRef } from "react";
-import VideoFeed from "./Section-Components/VideoFeed";
-import { SessionData } from "@/types/type";
-import getHeader from "@/lib/getHeader";
-import { apiUrl } from "@/utils/envConfig";
+'use client';
+import React, { useEffect, useState, useCallback, memo } from 'react';
+import { SessionData, Video } from '@/types/type';
+import { useDecryptedUserHook } from '@/hook/useDecryptedUser';
+import getHeaderClientSide from '@/lib/getHeaderClientSide';
+import { apiUrl } from '@/utils/envConfig';
+import VideoFeed from './Section-Components/VideoFeed';
 
-interface VideoSource {
-    id: string;
-    source: string;
-    orientation: string;
-    authorName?: string;
-    authorProfilePicture?: string;
-    description?: string;
-    isHls?: boolean;
-}
-
-interface SectionProps {
-    session: SessionData;
-    initialVideos: any[];
-    idVideo: string;
-}
-
-export default function Section({ session, initialVideos, idVideo }: SectionProps) {
-    const [videos, setVideos] = useState<VideoSource[]>(
-        initialVideos
-            .map(mapApiVideoToSource)
-            .filter((video: VideoSource | null): video is VideoSource => video !== null) // Explicit input type
-    );
-    const [page, setPage] = useState(2);
+function Section() {
+    const [videos, setVideos] = useState<Video[]>([]);
+    const [currentPage, setCurrentPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
-    const loaderRef = useRef<HTMLDivElement>(null);
+    const [session, setSession] = useState<SessionData>({ isLoggedIn: false, user: null });
 
-    function mapApiVideoToSource(apiVideo: any): VideoSource | null {
-        const source = apiVideo.hls_url && apiVideo.hls_url !== "" ? apiVideo.hls_url : apiVideo.video_url;
-        if (!source || source === "") return null;
+    const decryptedUser = useDecryptedUserHook(session.user);
 
-        return {
-            id: apiVideo.id,
-            source,
-            orientation: apiVideo.is_front_camera ? "portrait" : "landscape",
-            authorName: apiVideo.user?.username || "Unknown",
-            authorProfilePicture: apiVideo.user?.profile_picture || "",
-            description: apiVideo.title || apiVideo.thread_name,
-            isHls: !!(apiVideo.hls_url && apiVideo.hls_url !== ""),
-        };
-    }
-
-    const fetchMoreVideos = async () => {
-        const headers = await getHeader({ user: session.user });
-        const params = new URLSearchParams({
-            page: page.toString(),
-            limit: "10",
-        });
-
-        const res = await fetch(`${apiUrl}/api/video?${params.toString()}`, {
-            method: "GET",
-            headers,
-        });
-
-        if (!res.ok) {
-            console.error("Failed to fetch more videos");
-            setHasMore(false);
-            return;
-        }
-
-        const data = await res.json();
-        const newVideos = data.data
-            .map(mapApiVideoToSource)
-            .filter((video: VideoSource | null): video is VideoSource => video !== null); // Explicit input type
-
-        setVideos((prevVideos) => {
-            const existingIds = new Set(prevVideos.map((v) => v.id));
-            const uniqueNewVideos = newVideos.filter((video: VideoSource) => !existingIds.has(video.id));
-            return [...prevVideos, ...uniqueNewVideos];
-        });
-        setPage((prevPage) => prevPage + 1);
-        setHasMore(data.meta.current_page < data.meta.last_page);
-    };
-
+    // Fetch session data
     useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                if (entries[0].isIntersecting && hasMore) {
-                    fetchMoreVideos();
-                }
-            },
-            { threshold: 0.1 }
-        );
-
-        if (loaderRef.current) {
-            observer.observe(loaderRef.current);
-        }
-
-        return () => {
-            if (loaderRef.current) {
-                observer.unobserve(loaderRef.current);
+        const fetchSession = async () => {
+            try {
+                const response = await fetch('/api/auth/user', { credentials: 'include' });
+                const data: SessionData = await response.json();
+                setSession(data);
+            } catch (error) {
+                console.error('Error fetching session:', error);
+                setSession({ isLoggedIn: false, user: null });
             }
         };
-    }, [page, hasMore]);
+        fetchSession();
+    }, []);
+
+    // Fetch videos for a given page
+    const fetchVideos = useCallback(async (page: number) => {
+        try {
+            const headers = await getHeaderClientSide({ user: decryptedUser });
+            const res = await fetch(`${apiUrl}/api/video?page=${page}&limit=10`, { headers });
+            const data = await res.json();
+            if (data?.data && data.data.length > 0) {
+                setVideos((prev) => {
+                    const newVideos = data.data.filter((newVideo: Video) => !prev.some((v) => v.id === newVideo.id));
+                    return [...prev, ...newVideos];
+                });
+                setHasMore(page < data.meta.last_page);
+            } else {
+                setHasMore(false);
+            }
+        } catch (error) {
+            console.error('Error fetching videos:', error);
+            setHasMore(false);
+        }
+    }, [decryptedUser]);
+
+    // Initial load
+    useEffect(() => {
+        if (decryptedUser !== null) {
+            setVideos([]);
+            setCurrentPage(1);
+            fetchVideos(1);
+        }
+    }, [decryptedUser, fetchVideos]);
+
+    // Load more function (infinite scroll)
+    const loadMoreVideos = useCallback(async () => {
+        if (!hasMore) return;
+        const nextPage = currentPage + 1;
+        await fetchVideos(nextPage);
+        setCurrentPage(nextPage);
+    }, [currentPage, hasMore, fetchVideos]);
 
     return (
-        <div className="h-screen overflow-hidden no-scrollbar">
-            <VideoFeed sources={videos} initialVideoId={idVideo} />
-            {hasMore && (
-                <div ref={loaderRef} className="h-10 flex items-center justify-center">
-                    Loading more...
-                </div>
-            )}
+        <div className="overflow-hidden no-scrollbar">
+            <VideoFeed videos={videos} loadMore={loadMoreVideos} hasMore={hasMore} />
         </div>
     );
 }
+
+export default memo(Section);

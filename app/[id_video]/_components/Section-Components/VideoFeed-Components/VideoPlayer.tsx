@@ -1,10 +1,10 @@
-"use client";
-import { ProfileCircle } from "iconsax-react";
-import { motion } from "framer-motion";
-import { Volume1, Volume2, VolumeX } from "lucide-react";
-import React, { useRef, useState, useEffect } from "react";
-import Hls from "hls.js";
-import VideoSkeleton from "./VideoSkeleton";
+// app/[id_video]/_components/Section-Components/VideoFeed-Components/VideoPlayer.tsx
+'use client';
+import Hls from 'hls.js';
+import { ProfileCircle } from 'iconsax-react';
+import { motion } from 'framer-motion';
+import { Volume1, Volume2, VolumeX } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
 
 interface VideoData {
     id: string;
@@ -13,27 +13,22 @@ interface VideoData {
     authorName?: string;
     authorProfilePicture?: string;
     description?: string;
-    isHls?: boolean;
 }
 
 interface VideoFeedPlayerProps {
     video: VideoData;
     isSoundEnabled: boolean;
     videoRef: (el: HTMLVideoElement | null) => void;
-    isTransitioning: boolean;
 }
 
 export default function VideoFeedPlayer({
     video,
     isSoundEnabled,
     videoRef,
-    isTransitioning,
 }: VideoFeedPlayerProps) {
     const internalVideoRef = useRef<HTMLVideoElement | null>(null);
-    const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const thumbnailVideoRef = useRef<HTMLVideoElement | null>(null);
-    const progressBarRef = useRef<HTMLDivElement | null>(null);
     const hlsRef = useRef<Hls | null>(null);
+    const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [volume, setVolume] = useState(1);
     const [currentTime, setCurrentTime] = useState(0);
@@ -41,92 +36,76 @@ export default function VideoFeedPlayer({
     const [showOverlay, setShowOverlay] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     const [isVolumeHovered, setIsVolumeHovered] = useState(false);
-    const [thumbnailPosition, setThumbnailPosition] = useState(0);
-    const [thumbnailTime, setThumbnailTime] = useState(0);
-    const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(null);
-    const [isVideoReady, setIsVideoReady] = useState(false);
-    const [hasError, setHasError] = useState(false);
 
-    // Handle video loading (HLS or native)
+    // Determine if the source is HLS or direct video
+    const isHlsSource = video.source.includes('.m3u8');
+
+    // HLS setup and fallback logic
     useEffect(() => {
         const videoEl = internalVideoRef.current;
         if (!videoEl) return;
 
-        const setupVideo = () => {
-            if (video.isHls && Hls.isSupported()) {
-                if (hlsRef.current) hlsRef.current.destroy();
-                hlsRef.current = new Hls();
-                hlsRef.current.loadSource(video.source);
-                hlsRef.current.attachMedia(videoEl);
-                hlsRef.current.on(Hls.Events.MANIFEST_PARSED, () => {
-                    setIsVideoReady(true);
-                    setHasError(false);
-                });
-                hlsRef.current.on(Hls.Events.ERROR, (_, data) => {
-                    if (data.fatal) {
-                        setHasError(true);
-                        setIsVideoReady(false);
-                    }
-                });
-            } else {
-                videoEl.src = video.source;
-                videoEl.load();
-            }
-        };
-
-        const onLoadedMetadata = () => setDuration(videoEl.duration);
-        const onCanPlayThrough = () => {
-            setIsVideoReady(true);
-            setHasError(false);
-        };
-        const onError = () => {
-            setHasError(true);
-            setIsVideoReady(false);
-        };
-        const onTimeUpdate = () => setCurrentTime(videoEl.currentTime);
-        const onPlay = () => setIsPlaying(true);
-        const onPause = () => setIsPlaying(false);
-
-        setupVideo();
-        videoEl.addEventListener("loadedmetadata", onLoadedMetadata);
-        videoEl.addEventListener("canplaythrough", onCanPlayThrough);
-        videoEl.addEventListener("error", onError);
-        videoEl.addEventListener("timeupdate", onTimeUpdate);
-        videoEl.addEventListener("play", onPlay);
-        videoEl.addEventListener("pause", onPause);
+        if (isHlsSource && Hls.isSupported()) {
+            const hls = new Hls();
+            hlsRef.current = hls;
+            hls.loadSource(video.source);
+            hls.attachMedia(videoEl);
+            hls.on(Hls.Events.ERROR, (event, data) => {
+                if (data.fatal) {
+                    console.error('HLS Error:', data);
+                    hls.destroy();
+                }
+            });
+        } else {
+            videoEl.src = video.source; // Fallback to direct video URL
+        }
 
         return () => {
             if (hlsRef.current) {
                 hlsRef.current.destroy();
                 hlsRef.current = null;
             }
-            videoEl.removeEventListener("loadedmetadata", onLoadedMetadata);
-            videoEl.removeEventListener("canplaythrough", onCanPlayThrough);
-            videoEl.removeEventListener("error", onError);
-            videoEl.removeEventListener("timeupdate", onTimeUpdate);
-            videoEl.removeEventListener("play", onPlay);
-            videoEl.removeEventListener("pause", onPause);
         };
-    }, [video.source, video.isHls]);
+    }, [video.source, isHlsSource]);
 
-    // Thumbnail generation
-    const generateThumbnail = (time: number) => {
-        if (!thumbnailVideoRef.current) return;
-
-        const videoEl = thumbnailVideoRef.current;
-        const canvas = document.createElement("canvas");
-        canvas.width = video.orientation === "landscape" ? 160 : 90;
-        canvas.height = video.orientation === "landscape" ? 90 : 160;
-        const ctx = canvas.getContext("2d");
-
-        videoEl.currentTime = time;
-        videoEl.onseeked = () => {
-            if (ctx) {
-                ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-                setThumbnailUrl(canvas.toDataURL("image/jpeg"));
-            }
+    // Autoplay logic (muted by default to comply with Chrome policies)
+    useEffect(() => {
+        const videoEl = internalVideoRef.current;
+        if (!videoEl) return;
+      
+        videoEl.muted = !isSoundEnabled;
+        videoEl.volume = volume;
+      
+        const attemptAutoplay = () => {
+            // Skip if already playing
+            if (!videoEl.paused) return; 
+          videoEl.play()
+            .then(() => setIsPlaying(true))
+            .catch((err) => {
+              console.warn('Autoplay blocked:', err);
+              setIsPlaying(false);
+            });
         };
-    };
+      
+        attemptAutoplay();
+      
+        const onLoadedMetadata = () => setDuration(videoEl.duration);
+        const onTimeUpdate = () => setCurrentTime(videoEl.currentTime);
+        const onPlay = () => setIsPlaying(true);
+        const onPause = () => setIsPlaying(false);
+      
+        videoEl.addEventListener('loadedmetadata', onLoadedMetadata);
+        videoEl.addEventListener('timeupdate', onTimeUpdate);
+        videoEl.addEventListener('play', onPlay);
+        videoEl.addEventListener('pause', onPause);
+      
+        return () => {
+          videoEl.removeEventListener('loadedmetadata', onLoadedMetadata);
+          videoEl.removeEventListener('timeupdate', onTimeUpdate);
+          videoEl.removeEventListener('play', onPlay);
+          videoEl.removeEventListener('pause', onPause);
+        };
+      }, [video.source, isSoundEnabled, volume]); // Add video.source to deps
 
     const handlePlayPause = () => {
         if (!internalVideoRef.current) return;
@@ -153,27 +132,10 @@ export default function VideoFeedPlayer({
     };
 
     const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!isHovered) return;
         const newTime = parseFloat(e.target.value);
         setCurrentTime(newTime);
-        if (internalVideoRef.current) {
-            internalVideoRef.current.currentTime = newTime;
-        }
-    };
-
-    const handleProgressHover = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!progressBarRef.current || !isHovered) return;
-
-        const rect = progressBarRef.current.getBoundingClientRect();
-        const position = e.clientX - rect.left;
-        const percentage = position / rect.width;
-        const hoverTime = percentage * duration;
-
-        const thumbnailWidth = video.orientation === "landscape" ? 160 : 90;
-        const clampedPosition = Math.max(thumbnailWidth / 2, Math.min(position, rect.width - thumbnailWidth / 2));
-
-        setThumbnailPosition(clampedPosition);
-        setThumbnailTime(hoverTime);
-        generateThumbnail(hoverTime);
+        if (internalVideoRef.current) internalVideoRef.current.currentTime = newTime;
     };
 
     useEffect(() => {
@@ -183,48 +145,35 @@ export default function VideoFeedPlayer({
     }, []);
 
     return (
-        <div className={`relative w-full ${video.orientation === "portrait" ? "h-[650px]" : "h-[500px]"} rounded-lg`}>
-            {(isTransitioning || !isVideoReady || hasError) && (
-                <div className="absolute inset-0">
-                    <VideoSkeleton orientation={video.orientation as "portrait" | "landscape"} />
-                </div>
-            )}
-
+        <div className="relative w-full h-[650px] rounded-lg">
+            {/* Video Element */}
             <video
                 onClick={handlePlayPause}
                 ref={(el) => {
                     internalVideoRef.current = el;
                     videoRef(el);
                 }}
+                src={video.source}
                 loop
                 muted={!isSoundEnabled}
                 playsInline
-                preload="metadata"
-                className={`object-cover w-full h-full rounded-lg cursor-pointer ${isTransitioning || !isVideoReady || hasError ? "opacity-0" : "opacity-100"
-                    }`}
+                className="object-cover w-full h-full rounded-lg cursor-pointer"
             />
 
-            <video
-                ref={thumbnailVideoRef}
-                src={video.source}
-                muted
-                preload="metadata"
-                className="hidden"
-            />
-
-            {/* Volume Control */}
+            {/* Volume Control with Expanding Background */}
             <motion.div
-                className="absolute top-4 left-4 z-10 flex flex-row gap-0 items-center justify-center p-2 rounded-full bg-black bg-opacity-50 cursor-pointer"
+                className="absolute top-4 left-4 z-10 flex items-center p-2 rounded-full bg-black bg-opacity-50 cursor-pointer"
                 onHoverStart={() => setIsVolumeHovered(true)}
                 onHoverEnd={() => setIsVolumeHovered(false)}
                 animate={{
-                    width: isVolumeHovered ? "120px" : "40px",
-                    paddingLeft: isVolumeHovered ? "12px" : "15px",
+                    width: isVolumeHovered ? "120px" : "40px", 
+                    paddingLeft: isVolumeHovered ? "12px" : "8px",
                     paddingRight: isVolumeHovered ? "12px" : "8px",
                 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
             >
-                <div className="flex-shrink-0 items-center">
+                {/* Volume Icon (Fixed Position) */}
+                <div className="flex-shrink-0">
                     {volume === 0 ? (
                         <VolumeX size={20} color="white" />
                     ) : volume > 0.5 ? (
@@ -233,6 +182,8 @@ export default function VideoFeedPlayer({
                         <Volume1 size={20} color="white" />
                     )}
                 </div>
+
+                {/* Volume Slider (Expanding on Hover) */}
                 <motion.div
                     initial={{ scaleX: 0, opacity: 0 }}
                     animate={{
@@ -242,12 +193,15 @@ export default function VideoFeedPlayer({
                     transition={{ duration: 0.3, ease: "easeInOut" }}
                     className="relative origin-left w-24 h-[10px] flex items-center ml-2"
                 >
+                    {/* Volume Progress Bar */}
                     <div
                         className="absolute bottom-1 left-0 w-full h-[4px] bg-gray-500 opacity-70 rounded-lg"
                         style={{
-                            background: `linear-gradient(to right, #FFF ${volume * 100}%, #999 ${volume * 100}%)`,
+                            background: `linear-gradient(to right, #FFF ${volume * 100}%, #999 ${volume * 100}%)`
                         }}
                     ></div>
+
+                    {/* Volume Input Slider */}
                     <input
                         type="range"
                         min="0"
@@ -256,47 +210,47 @@ export default function VideoFeedPlayer({
                         value={volume}
                         onChange={handleVolumeChange}
                         className="absolute w-full bottom-1 h-[4px] opacity-100 transition-opacity duration-300"
-                        style={{ appearance: "none", background: "transparent", cursor: "pointer" }}
+                        style={{
+                            appearance: 'none',
+                            background: 'transparent',
+                            cursor: 'pointer',
+                        }}
                     />
                 </motion.div>
             </motion.div>
 
+
             {/* Bottom Overlay */}
             <div
                 className="absolute bottom-0 left-0 w-full h-32 z-10 px-4 py-3 flex flex-col space-y-2 rounded-b-lg justify-end items-start"
-                style={{ background: "linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.8) 100%)" }}
+                style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.8) 100%)' }}
             >
+                {/* Author Info & Description */}
                 <div className="flex items-center space-x-2">
                     {video.authorProfilePicture ? (
-                        <img
-                            src={video.authorProfilePicture}
-                            alt={video.authorName}
-                            className="w-10 h-10 rounded-full object-cover"
-                        />
+                        <img src={video.authorProfilePicture} alt={video.authorName} className="w-10 h-10 rounded-full object-cover" />
                     ) : (
                         <ProfileCircle size="32" color="#BE41D2" variant="Bulk" />
                     )}
-                    <span className="text-white font-bold">{video.authorName || "Unknown"}</span>
+                    <span className="text-white font-bold">{video.authorName || 'Unknown'}</span>
                 </div>
-                <p className="text-sm text-white">{video.description || "No description available."}</p>
+                <p className="text-sm text-white">{video.description || 'No description available.'}</p>
 
+                {/* Interactive Progress Bar */}
                 <div
-                    ref={progressBarRef}
                     className="relative w-full"
                     onMouseEnter={() => setIsHovered(true)}
-                    onMouseLeave={() => {
-                        setIsHovered(false);
-                        setThumbnailUrl(null);
-                    }}
-                    onMouseMove={handleProgressHover}
+                    onMouseLeave={() => setIsHovered(false)}
                 >
+                    {/* Progress Bar Background (thin stroke when not hovered) */}
                     <div
                         className={`absolute bottom-0 left-0 w-full ${isHovered ? "h-[5px] rounded-lg" : "h-[2px]"} bg-gray-500 opacity-70`}
                         style={{
-                            background: `linear-gradient(to right, #BE41D2 ${((currentTime / duration) * 100) || 0
-                                }%, #999 ${((currentTime / duration) * 100) || 0}%)`,
+                            background: `linear-gradient(to right, #BE41D2 ${((currentTime / duration) * 100) || 0}%, #999 ${((currentTime / duration) * 100) || 0}%)`
                         }}
                     ></div>
+
+                    {/* Progress Bar Input */}
                     <input
                         type="range"
                         min="0"
@@ -304,90 +258,72 @@ export default function VideoFeedPlayer({
                         step="0.1"
                         value={currentTime}
                         onChange={handleProgressChange}
-                        className={`progress-playback absolute w-full bottom-0 transition-all duration-300 ${isHovered ? "opacity-100 h-[5px]" : "opacity-0 h-0"
+                        className={`absolute w-full bottom-0 transition-all duration-300 ${isHovered ? 'opacity-100 h-[5px]' : 'opacity-0 h-0'
                             }`}
                         style={{
-                            appearance: "none",
-                            background: "transparent",
-                            cursor: isHovered ? "pointer" : "default",
+                            appearance: 'none',
+                            background: 'transparent',
+                            cursor: isHovered ? 'pointer' : 'default',
                         }}
                     />
-                    {isHovered && thumbnailUrl && (
-                        <motion.div
-                            className="absolute z-20 rounded-lg"
-                            style={{
-                                left: `${thumbnailPosition - (video.orientation === "landscape" ? 80 : 45)}px`,
-                                bottom: `${video.orientation === "landscape" ? 35 : 50}px`,
-                            }}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.2 }}
-                        >
-                            <img
-                                src={thumbnailUrl}
-                                alt="Preview"
-                                className={`rounded-md shadow-lg border-2 border-[#B14AE2] ${video.orientation === "landscape" ? "w-[160px] h-[90px]" : "w-[90px] h-[160px]"
-                                    }`}
-                            />
-                            <span className="absolute bottom-1 left-1 text-xs text-white bg-black bg-opacity-70 px-1 rounded">
-                                {Math.floor(thumbnailTime / 60)}:
-                                {Math.floor(thumbnailTime % 60)
-                                    .toString()
-                                    .padStart(2, "0")}
-                            </span>
-                        </motion.div>
-                    )}
                 </div>
             </div>
-
-            {showOverlay && (
-                <button
-                    onClick={handlePlayPause}
-                    className="absolute w-fit h-fit m-auto inset-0 flex items-center justify-center text-white text-4xl z-10 bg-black bg-opacity-20 rounded-full transition-opacity py-6 px-6"
-                    style={{ transitionDuration: "800ms" }}
-                >
-                    {isPlaying ? (
-                        <span className="icon-[solar--pause-bold] size-7"></span>
-                    ) : (
-                        <span className="icon-[solar--play-bold] size-8"></span>
-                    )}
-                </button>
-            )}
-
+            {/* Centered Play/Pause Button Overlay (shows only briefly) */}
+            {
+                showOverlay && (
+                    <button
+                        onClick={handlePlayPause}
+                        className="absolute w-fit h-fit m-auto inset-0 flex items-center justify-center text-white text-4xl z-10 bg-black bg-opacity-20 rounded-full transition-opacity py-6 px-6"
+                        style={{ transitionDuration: '800ms' }}
+                    >
+                        {isPlaying ? (
+                            <span className="icon-[solar--pause-bold] size-7"></span>
+                        ) : (
+                            <span className="icon-[solar--play-bold] size-8"></span>
+                        )}
+                    </button>
+                )
+            }
+            {/* Custom Styles for White Volume Slider & Purple Progress Bar */}
             <style jsx>{`
-        input[type="range"]:not(.progress-playback)::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 10px;
-          height: 10px;
-          background: #ffffff;
-          border-radius: 50%;
-          cursor: pointer;
-        }
-        input[type="range"]:not(.progress-playback)::-moz-range-thumb {
-          width: 10px;
-          height: 10px;
-          background: #ffffff;
-          border-radius: 50%;
-          cursor: pointer;
-        }
-        input.progress-playback::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 12px;
-          height: 12px;
-          background: #be41d2;
-          border-radius: 50%;
-          cursor: pointer;
-        }
-        input.progress-playback::-moz-range-thumb {
-          width: 12px;
-          height: 12px;
-          background: #be41d2;
-          border-radius: 50%;
-          cursor: pointer;
-        }
-      `}</style>
-        </div>
+                /* White Bullet for Volume */
+                input[type="range"]:not(.progress-bar)::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 10px;
+                    height: 10px;
+                    background: #FFFFFF;
+                    border-radius: 50%;
+                    cursor: pointer;
+                }
+                
+                input[type="range"]:not(.progress-bar)::-moz-range-thumb {
+                    width: 10px;
+                    height: 10px;
+                    background: #FFFFFF;
+                    border-radius: 50%;
+                    cursor: pointer;
+                }
+
+                /* Purple Bullet for Progress Bar */
+                input.progress-bar::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 12px;
+                    height: 12px;
+                    background: #BE41D2;
+                    border-radius: 50%;
+                    cursor: pointer;
+                }
+
+                input.progress-bar::-moz-range-thumb {
+                    width: 12px;
+                    height: 12px;
+                    background: #BE41D2;
+                    border-radius: 50%;
+                    cursor: pointer;
+                }
+            `}</style>
+        </div >
     );
 }
