@@ -40,6 +40,8 @@ export default function AddContactModal({ postId, onClose, session, onSave }: Ad
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    console.log(users);
+
     // Effect to disable root scroll when modal is open
     useEffect(() => {
         const originalStyle = window.getComputedStyle(document.body).overflow;
@@ -55,7 +57,7 @@ export default function AddContactModal({ postId, onClose, session, onSave }: Ad
             const headers = await getHeader({ user: session.user });
             try {
                 const res = await api<ApiResponse>({
-                    endpoint: `api/video/${postId}/user-tag`,
+                    endpoint: `api/contact`,
                     method: "GET",
                     options: {
                         headers: headers,

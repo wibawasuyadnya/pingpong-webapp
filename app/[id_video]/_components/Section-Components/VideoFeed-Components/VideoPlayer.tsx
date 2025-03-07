@@ -3,8 +3,9 @@ import Hls from 'hls.js';
 import { ProfileCircle } from 'iconsax-react';
 import { motion } from 'framer-motion';
 import { Volume1, Volume2, VolumeX } from 'lucide-react';
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import SrtParser from 'srt-parser-2';
+import Image from 'next/image';
 
 interface VideoData {
     id: string;
@@ -16,19 +17,22 @@ interface VideoData {
     thumbnailSprite?: string;
     thumbnailUrl?: string;
     thread_name?: string;
+    createdAt?: string;
 }
 
 interface VideoPlayerProps {
     video: VideoData;
     isSoundEnabled: boolean;
     videoRef: (el: HTMLVideoElement | null) => void;
+    onUserPlay: () => void;
 }
 
-export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPlayerProps) {
+export default function VideoPlayer({ video, isSoundEnabled, videoRef, onUserPlay }: VideoPlayerProps) {
     const internalVideoRef = useRef<HTMLVideoElement | null>(null);
     const thumbnailVideoRef = useRef<HTMLVideoElement | null>(null);
     const hlsRef = useRef<Hls | null>(null);
     const overlayTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const volumeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const progressBarRef = useRef<HTMLDivElement | null>(null);
 
     const [isPlaying, setIsPlaying] = useState(false);
@@ -96,19 +100,12 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
         if (!videoEl) return;
 
         videoEl.volume = volume;
-        videoEl.muted = true; // Start muted to ensure autoplay works
+        videoEl.muted = true; // Start muted to comply with browser policies
         videoEl.playbackRate = 1;
 
         const onLoadedMetadata = () => {
             setDuration(videoEl.duration);
-            videoEl.currentTime = 0; // Reset to start
-            // Start muted autoplay when video is ready
-            videoEl.play()
-                .then(() => {
-                    setIsPlaying(true);
-                    console.log('Muted autoplay started');
-                })
-                .catch((err) => console.log('Muted autoplay failed:', err));
+            videoEl.currentTime = 0;
         };
 
         const onTimeUpdate = () => {
@@ -131,7 +128,6 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
         };
     }, [video.source, volume]);
 
-    // Fetch and parse .srt captions using srt-parser-2
     useEffect(() => {
         async function fetchCaptions() {
             try {
@@ -154,7 +150,6 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
         }
     }, [video.description]);
 
-    // Update currentCaption based on currentTime
     useEffect(() => {
         if (parsedCaptions.length === 0) return;
         const matching = parsedCaptions.find(
@@ -172,9 +167,12 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
         if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current);
         const videoEl = internalVideoRef.current;
         if (videoEl.paused) {
-            videoEl.muted = false; // Unmute on user click
+            videoEl.muted = false;
             videoEl.play()
-                .then(() => setIsPlaying(true))
+                .then(() => {
+                    setIsPlaying(true);
+                    onUserPlay();
+                })
                 .catch((err) => console.error('Play error:', err));
         } else {
             videoEl.pause();
@@ -184,13 +182,21 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
         overlayTimeoutRef.current = setTimeout(() => setShowOverlay(false), 800);
     };
 
+    const debounceVolumeChange = useCallback((newVolume: number) => {
+        if (volumeTimeoutRef.current) clearTimeout(volumeTimeoutRef.current);
+        volumeTimeoutRef.current = setTimeout(() => {
+            if (internalVideoRef.current) {
+                internalVideoRef.current.volume = newVolume;
+                internalVideoRef.current.muted = newVolume === 0;
+                console.log(`Volume applied: ${newVolume}, Muted: ${internalVideoRef.current.muted}, Actual Volume: ${internalVideoRef.current.volume}`);
+            }
+        }, 100); // Debounce by 100ms to prevent rapid updates
+    }, []);
+
     const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newVolume = parseFloat(e.target.value);
         setVolume(newVolume);
-        if (internalVideoRef.current) {
-            internalVideoRef.current.volume = newVolume;
-            internalVideoRef.current.muted = newVolume === 0;
-        }
+        debounceVolumeChange(newVolume);
     };
 
     const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,10 +227,6 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
                 }
             }
         };
-        videoEl.onerror = () => {
-            console.error('Thumbnail video error');
-            setThumbnailUrl(null);
-        };
     };
 
     const handleProgressHover = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -245,6 +247,7 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
     useEffect(() => {
         return () => {
             if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current);
+            if (volumeTimeoutRef.current) clearTimeout(volumeTimeoutRef.current);
         };
     }, []);
 
@@ -298,7 +301,6 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
                 crossOrigin="anonymous"
                 className="object-cover w-full h-[615px] rounded-xl cursor-pointer absolute bottom-0"
             />
-
             <video
                 ref={thumbnailVideoRef}
                 src={video.source}
@@ -307,7 +309,6 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
                 crossOrigin="anonymous"
                 className="hidden"
             />
-
             <motion.div
                 className="absolute top-11 left-2 z-10 flex items-center p-2 rounded-full bg-black bg-opacity-50 cursor-pointer"
                 onHoverStart={() => setIsVolumeHovered(true)}
@@ -342,7 +343,7 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
                         style={{
                             background: `linear-gradient(to right, #FFF ${volume * 100}%, #999 ${volume * 100}%)`,
                         }}
-                    ></div>
+                    />
                     <input
                         type="range"
                         min="0"
@@ -359,26 +360,26 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
                     />
                 </motion.div>
             </motion.div>
-
             <div
                 className="absolute bottom-0 left-0 w-full h-32 z-10 px-4 py-3 flex flex-col space-y-2 rounded-b-xl justify-end items-start"
                 style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.8) 100%)' }}
             >
                 <div className="flex items-center space-x-2">
                     {video.authorProfilePicture ? (
-                        <img src={video.authorProfilePicture} alt={video.authorName} className="w-10 h-10 rounded-full object-cover" />
+                        <Image src={video.authorProfilePicture} alt={`${video.authorName} image`} width={20} height={20} className="w-10 h-10 rounded-full object-cover" />
                     ) : (
-                        <ProfileCircle size="32" color="#BE41D2" variant="Bulk" />
+                        <ProfileCircle size="32" color="#BE41D2" variant="Bold" />
                     )}
-                    <span className="text-white font-bold">{video.authorName || 'Unknown'}</span>
+                    <div>
+                        <span className="text-white font-bold">{video.authorName}</span>
+                        <span className='text-white font-medium text-sm'>{video.createdAt}</span>
+                    </div>
                 </div>
-
                 {currentCaption && (
                     <p className="bg-purple-600 bg-opacity-75 text-white px-3 py-1 rounded-md text-left line-clamp-2">
                         {currentCaption}
                     </p>
                 )}
-
                 <div
                     ref={progressBarRef}
                     className="relative w-full"
@@ -393,14 +394,13 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
                     <div
                         className="absolute bottom-8 z-20 bg-cover bg-center rounded-md shadow-lg border-2 border-[#B14AE2]"
                         style={getThumbnailStyle()}
-                    ></div>
-
+                    />
                     <div
                         className={`absolute bottom-0 left-0 w-full ${isHovered ? "h-[5px] rounded-lg" : "h-[2px]"} bg-gray-500 opacity-70`}
                         style={{
                             background: `linear-gradient(to right, #BE41D2 ${((currentTime / duration) * 100) || 0}%, #999 ${((currentTime / duration) * 100) || 0}%)`,
                         }}
-                    ></div>
+                    />
                     <input
                         type="range"
                         min="0"
@@ -417,7 +417,6 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
                     />
                 </div>
             </div>
-
             {showOverlay && (
                 <button
                     onClick={handlePlayPause}
@@ -425,47 +424,46 @@ export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPl
                     style={{ transitionDuration: '800ms' }}
                 >
                     {isPlaying ? (
-                        <span className="icon-[solar--pause-bold] size-7"></span>
+                        <span className="icon-[solar--pause-bold] size-7" />
                     ) : (
-                        <span className="icon-[solar--play-bold] size-8"></span>
+                        <span className="icon-[solar--play-bold] size-8" />
                     )}
                 </button>
             )}
-
             <style jsx>{`
-        input[type="range"]:not(.vid-progress)::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 10px;
-          height: 10px;
-          background: #FFFFFF;
-          border-radius: 50%;
-          cursor: pointer;
-        }
-        input[type="range"]:not(.vid-progress)::-moz-range-thumb {
-          width: 10px;
-          height: 10px;
-          background: #FFFFFF;
-          border-radius: 50%;
-          cursor: pointer;
-        }
-        input.vid-progress::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          width: 12px;
-          height: 12px;
-          background: #BE41D2;
-          border-radius: 50%;
-          cursor: pointer;
-        }
-        input.vid-progress::-moz-range-thumb {
-          width: 12px;
-          height: 12px;
-          background: #BE41D2;
-          border-radius: 50%;
-          cursor: pointer;
-        }
-      `}</style>
+                input[type="range"]:not(.vid-progress)::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 10px;
+                    height: 10px;
+                    background: #FFFFFF;
+                    border-radius: 50%;
+                    cursor: pointer;
+                }
+                input[type="range"]:not(.vid-progress)::-moz-range-thumb {
+                    width: 10px;
+                    height: 10px;
+                    background: #FFFFFF;
+                    border-radius: 50%;
+                    cursor: pointer;
+                }
+                input.vid-progress::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 12px;
+                    height: 12px;
+                    background: #BE41D2;
+                    border-radius: 50%;
+                    cursor: pointer;
+                }
+                input.vid-progress::-moz-range-thumb {
+                    width: 12px;
+                    height: 12px;
+                    background: #BE41D2;
+                    border-radius: 50%;
+                    cursor: pointer;
+                }
+            `}</style>
         </div>
     );
 }

@@ -1,6 +1,9 @@
+"use client";
 import React from "react";
-import { Trash } from 'iconsax-react';
-
+import { Trash } from "iconsax-react";
+import { useRouter } from "next/navigation";
+import { clearVideo } from "@/redux/slices/videoSlice";
+import { useAppDispatch } from "@/redux/hook";
 
 interface VideoAttachTitleProps {
     video_title: string;
@@ -8,6 +11,14 @@ interface VideoAttachTitleProps {
 }
 
 export default function VideoAttachTitle({ video_title, video_size }: VideoAttachTitleProps) {
+    const router = useRouter();
+    const dispatch = useAppDispatch();
+
+    const handleDelete = () => {
+        dispatch(clearVideo());
+        router.back();
+    };
+
     return (
         <div className="rounded-lg bg-white p-3">
             <div className="bg-[#F9FFFC] border-[#34C759] border-[1px] border-solid rounded-lg p-3 flex flex-row gap-1">
@@ -19,12 +30,9 @@ export default function VideoAttachTitle({ video_title, video_size }: VideoAttac
                     </div>
                 </div>
                 <div className="flex justify-end items-start w-full">
-                    <Trash
-                        size="20px"
-                        color="#353535"
-                    />
+                    <Trash size="20px" color="#353535" onClick={handleDelete} className="cursor-pointer" />
                 </div>
             </div>
         </div>
-    )
+    );
 }

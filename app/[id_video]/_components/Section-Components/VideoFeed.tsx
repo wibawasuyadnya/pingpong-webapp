@@ -31,7 +31,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const scrollPositionRef = useRef<number>(0);
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
-    const [hasInteracted, setHasInteracted] = useState(false);
+    const [hasUserPlayedVideo, setHasUserPlayedVideo] = useState(false); // Track if user has clicked to play
 
     const uniqueVideos = useMemo(() => {
         const seenIds = new Set();
@@ -42,49 +42,49 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
         });
     }, [videos]);
 
-    // Track mouse movement and scroll for interaction
-    useEffect(() => {
-        const handleInteraction = () => {
-            if (!hasInteracted) {
-                setHasInteracted(true);
-                const activeVideo = videoRefs.current[activeIndex ?? 0];
-                if (activeVideo && !activeVideo.paused) {
-                    activeVideo.muted = false;
-                    console.log('Unmuted due to interaction');
-                }
-            }
-        };
+    const isTargetVideoLoaded = currentVideoId ? uniqueVideos.some((video) => video.id === currentVideoId) : true;
 
-        window.addEventListener('mousemove', handleInteraction);
-        window.addEventListener('scroll', handleInteraction);
-        return () => {
-            window.removeEventListener('mousemove', handleInteraction);
-            window.removeEventListener('scroll', handleInteraction);
+    useEffect(() => {
+        if (currentVideoId && !isTargetVideoLoaded && hasMore && !loadingMore) {
+            loadMore();
+        }
+    }, [currentVideoId, isTargetVideoLoaded, hasMore, loadingMore, loadMore]);
+
+    useEffect(() => {
+        const options = { rootMargin: '0px', threshold: 0.5 };
+        const handleIntersection = (entries: IntersectionObserverEntry[]) => {
+            entries.forEach((entry) => {
+                const video = entry.target as HTMLVideoElement;
+                if (!entry.isIntersecting && !video.paused) {
+                    video.pause();
+                }
+            });
         };
-    }, [hasInteracted, activeIndex]);
+        const observer = new IntersectionObserver(handleIntersection, options);
+        videoRefs.current.forEach((video) => video && observer.observe(video));
+        return () => videoRefs.current.forEach((video) => video && observer.unobserve(video));
+    }, [uniqueVideos]);
 
     const playActiveVideo = useCallback((index: number) => {
         const video = videoRefs.current[index];
         if (!video) return;
 
-        // Pause all other videos
+        // Pause all other videos before playing the active one
         videoRefs.current.forEach((v, idx) => {
-            if (v && idx !== index && !v.paused) v.pause();
+            if (v && idx !== index && !v.paused) {
+                v.pause();
+            }
         });
 
-        // Play with sound if interacted, otherwise muted
-        video.muted = !hasInteracted;
+        video.muted = false; // Ensure sound is enabled
         video.play()
             .then(() => {
-                console.log(`Playing video at index ${index}${hasInteracted ? ' with sound' : ' muted'}`);
-                if (!isInitialLoading && hasInteracted) {
-                    video.muted = false;
-                }
+                console.log(`Playing video at index ${index} with sound`);
             })
             .catch((err) => {
                 console.warn('Play interrupted:', err);
             });
-    }, [hasInteracted, isInitialLoading]);
+    }, []);
 
     const handleScroll = useCallback(() => {
         const container = containerRef.current;
@@ -114,44 +114,48 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
 
             if (activeIndex !== closestIndex) {
                 setActiveIndex(closestIndex);
-                playActiveVideo(closestIndex);
+                const activeVideo = videoRefs.current[closestIndex];
+                if (activeVideo) {
+                    videoRefs.current.forEach((video) => video?.classList.remove('active-video'));
+                    activeVideo.classList.add('active-video');
+                    // Only autoplay if the user has previously played a video
+                    if (hasUserPlayedVideo) {
+                        playActiveVideo(closestIndex);
+                    }
+                }
             }
 
             if (uniqueVideos[closestIndex]) {
-                window.history.replaceState(window.history.state, '', `/${uniqueVideos[closestIndex].id}`);
+                const newId = uniqueVideos[closestIndex].id;
+                window.history.replaceState(window.history.state, '', `/${newId}`);
             }
 
-            if (hasMore && container.scrollTop + container.clientHeight >= container.scrollHeight - 200) {
-                loadMore();
+            if (hasMore) {
+                const threshold = 200;
+                if (container.scrollTop + container.clientHeight >= container.scrollHeight - threshold) {
+                    loadMore();
+                }
             }
         }, 150);
-    }, [uniqueVideos, loadMore, hasMore, activeIndex, playActiveVideo]);
+    }, [uniqueVideos, loadMore, hasMore, activeIndex, playActiveVideo, hasUserPlayedVideo]);
 
-    // Handle page visibility changes
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'hidden') {
-                // Pause all videos when the page is not visible
                 videoRefs.current.forEach((video) => {
                     if (video && !video.paused) {
                         video.pause();
                     }
                 });
             } else {
-                // Resume the active video when the page becomes visible
-                if (activeIndex !== null) {
+                if (activeIndex !== null && hasUserPlayedVideo) {
                     playActiveVideo(activeIndex);
                 }
             }
         };
-
         document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // Cleanup the event listener on component unmount
-        return () => {
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
-    }, [activeIndex, playActiveVideo]); // Dependencies ensure the handler updates with the latest activeIndex and playActiveVideo
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [activeIndex, playActiveVideo, hasUserPlayedVideo]);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -169,11 +173,14 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
             setActiveIndex(activeIdx);
             const activeVideo = videoRefs.current[activeIdx];
             activeVideo.scrollIntoView({ behavior: 'auto' });
-            if (!isInitialLoading) {
-                playActiveVideo(activeIdx);
-            }
+            // Ensure no autoplay on initial load
+            videoRefs.current.forEach((video, idx) => {
+                if (video && idx !== activeIdx && !video.paused) {
+                    video.pause();
+                }
+            });
         }
-    }, [currentVideoId, uniqueVideos, playActiveVideo, isInitialLoading]);
+    }, [currentVideoId, uniqueVideos]);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -190,7 +197,9 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                 videoEl.scrollIntoView({ behavior: 'smooth' });
                 window.history.replaceState(window.history.state, '', `/${uniqueVideos[newIndex].id}`);
                 setActiveIndex(newIndex);
-                playActiveVideo(newIndex);
+                if (hasUserPlayedVideo) {
+                    playActiveVideo(newIndex);
+                }
             }
         }
     };
@@ -203,7 +212,9 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                 videoEl.scrollIntoView({ behavior: 'smooth' });
                 window.history.replaceState(window.history.state, '', `/${uniqueVideos[newIndex].id}`);
                 setActiveIndex(newIndex);
-                playActiveVideo(newIndex);
+                if (hasUserPlayedVideo) {
+                    playActiveVideo(newIndex);
+                }
             }
         }
     };
@@ -268,9 +279,11 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                                             authorProfilePicture: video.user.picture,
                                             description: video.srt_file,
                                             thread_name: video.thread_name,
+                                            createdAt: video.created_at,
                                         }}
                                         videoRef={(el) => (videoRefs.current[index] = el)}
                                         isSoundEnabled={true}
+                                        onUserPlay={() => setHasUserPlayedVideo(true)} 
                                     />
                                     <SideControlBar controlsBottomClass={controlsBottomClass} />
                                 </div>
@@ -289,10 +302,9 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                     totalVideos={uniqueVideos.length}
                     currentIndex={activeIndex}
                 />
-
                 {activeIndex !== null && uniqueVideos[activeIndex] && (
                     <div
-                        className="fixed bottom-3 right-0 z-20 flex flex-row items-end justify-center"
+                        className="fixed bottom-2 right-0 z-20 flex flex-row items-end justify-center"
                         style={{ width: 'calc(100% - 203.6px)' }}
                     >
                         <UploadButton activeId={uniqueVideos[activeIndex].id} />
