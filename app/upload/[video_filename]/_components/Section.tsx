@@ -5,13 +5,15 @@ import { useRouter } from "next/navigation";
 import { RootState } from "@/redux/store";
 import VideoAttachTitle from "./Section-Components/VideoAttachTitle";
 import VideoDetailPreview from "./Section-Components/VideoDetail";
+import { SessionData } from "@/types/type";
 
 interface SectionProps {
     videoFilename: string;
     post?: string;
+    session: SessionData;
 }
 
-export default function Section({ videoFilename, post }: SectionProps) {
+export default function Section({ videoFilename, post, session }: SectionProps) {
     const router = useRouter();
 
     // Redux fields
@@ -137,7 +139,7 @@ export default function Section({ videoFilename, post }: SectionProps) {
             <VideoAttachTitle video_size={sizeMB} video_title={videoFilename} />
 
             {/* Show local preview from base64 */}
-            <VideoDetailPreview video_preview={base64Data} />
+            <VideoDetailPreview video_preview={base64Data} post={post} session={session}/>
         </div>
     );
 }

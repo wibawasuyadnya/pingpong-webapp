@@ -35,10 +35,11 @@ export interface CameraRecorderHandle {
 
 export interface CameraRecorderProps {
     onRecordingStatusChange?: (isRecording: boolean) => void;
+    replyVideo: string | undefined;
 }
 
 const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(
-    ({ onRecordingStatusChange }, ref) => {
+    ({ onRecordingStatusChange, replyVideo }, ref) => {
         const router = useRouter();
         const dispatch = useAppDispatch();
 
@@ -199,7 +200,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(
 
                 // 4) Navigate to /upload/[videoFilename]?post=new
                 // This is where your dynamic route picks it up
-                router.push(`/upload/${videoFilename}?post=new`);
+                router.push(`/upload/${videoFilename}?post=${replyVideo !== undefined ? replyVideo : "new"}`);
             };
 
             mediaRecorder.onerror = (event) => {

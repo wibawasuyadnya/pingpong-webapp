@@ -4,28 +4,22 @@ import { AnimatePresence, motion } from "framer-motion";
 import VideoUploader from "./Section-Component/VideoUploader";
 import RecorderSection, { RecorderSectionHandle } from "./Section-Component/Recorder";
 
-export default function Section() {
+export default function Section({ replyVideo }: { replyVideo: string | undefined }) {
     const recorderRef = useRef<RecorderSectionHandle>(null);
-
-    // Which recording type is selected
     const [selectedRecordingType, setSelectedRecordingType] = useState("camera");
-    // Are we currently recording?
     const [isRecording, setIsRecording] = useState(false);
 
     // Force exactly one panel open at a time:
-    // "recorder" or "uploader". By default, "recorder" is open.
     const [expandedPanel, setExpandedPanel] = useState<"recorder" | "uploader">("recorder");
 
     // Switch to "recorder" panel. If it's already "recorder," do nothing.
     const showRecorderPanel = () => {
         setExpandedPanel((prev) => (prev === "recorder" ? "recorder" : "recorder"));
-        // or simply setExpandedPanel("recorder") if you want a no-op if it's already 'recorder'
     };
 
     // Switch to "uploader" panel. If it's already "uploader," do nothing.
     const showUploaderPanel = () => {
         setExpandedPanel((prev) => (prev === "uploader" ? "uploader" : "uploader"));
-        // or simply setExpandedPanel("uploader")
     };
 
     // Start/stop recording
@@ -83,8 +77,8 @@ export default function Section() {
                                             }}
                                             disabled={isRecording}
                                             className={`flex flex-row items-center gap-2 py-3 px-5 w-[400px] rounded-lg border ${selectedRecordingType === "camera"
-                                                    ? "border-[#B14AE2] bg-[#F9F4FF]"
-                                                    : "border-gray-300"
+                                                ? "border-[#B14AE2] bg-[#F9F4FF]"
+                                                : "border-gray-300"
                                                 } ${isRecording && selectedRecordingType !== "camera"
                                                     ? "opacity-50 cursor-not-allowed"
                                                     : ""
@@ -107,8 +101,8 @@ export default function Section() {
                                             }}
                                             disabled={isRecording}
                                             className={`flex flex-row items-center gap-2 py-3 px-5 w-[400px] rounded-lg border ${selectedRecordingType === "screen"
-                                                    ? "border-[#B14AE2] bg-[#F9F4FF]"
-                                                    : "border-gray-300"
+                                                ? "border-[#B14AE2] bg-[#F9F4FF]"
+                                                : "border-gray-300"
                                                 } ${isRecording && selectedRecordingType !== "screen"
                                                     ? "opacity-50 cursor-not-allowed"
                                                     : ""
@@ -163,7 +157,7 @@ export default function Section() {
                             className="overflow-hidden"
                         >
                             <div className="space-y-3 mt-4">
-                                <VideoUploader />
+                                <VideoUploader replyVideo={replyVideo} />
                             </div>
                         </motion.div>
                     )}
@@ -175,6 +169,7 @@ export default function Section() {
             {/* ------------------------------------------- */}
             <RecorderSection
                 ref={recorderRef}
+                replyVideo={replyVideo}
                 mode={selectedRecordingType as "camera" | "screen"}
                 onRecordingStatusChange={(status) => setIsRecording(status)}
             />

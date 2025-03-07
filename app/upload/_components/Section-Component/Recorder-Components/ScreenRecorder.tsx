@@ -21,6 +21,7 @@ export interface ScreenRecorderHandle {
 
 export interface CameraRecorderProps {
     onRecordingStatusChange?: (isRecording: boolean) => void;
+    replyVideo: string | undefined;
 }
 
 type DisplaySurfaceOption = "monitor" | "window" | "browser";
@@ -39,7 +40,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 }
 
 const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
-    ({ onRecordingStatusChange }, ref) => {
+    ({ onRecordingStatusChange, replyVideo }, ref) => {
         const router = useRouter();
         const dispatch = useAppDispatch();
 
@@ -141,7 +142,7 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
                     }
 
                     // Navigate to /upload/[ephemeralId].mp4?post=new
-                    router.push(`/upload/${ephemeralId}.mp4?post=new`);
+                    router.push(`/upload/${ephemeralId}.mp4?post=${replyVideo !== undefined ? replyVideo : "new"}`);
                 };
 
                 mediaRecorder.onerror = (event) => {

@@ -1,9 +1,8 @@
-// app/[id_video]/_components/Section-Components/VideoFeed-Components/VideoPlayer.tsx
 'use client';
 import Hls from 'hls.js';
 import { ProfileCircle } from 'iconsax-react';
 import { motion } from 'framer-motion';
-import { ChevronRight, Volume1, Volume2, VolumeX } from 'lucide-react';
+import { Volume1, Volume2, VolumeX } from 'lucide-react';
 import React, { useRef, useState, useEffect } from 'react';
 import SrtParser from 'srt-parser-2';
 
@@ -25,11 +24,7 @@ interface VideoPlayerProps {
     videoRef: (el: HTMLVideoElement | null) => void;
 }
 
-export default function VideoPlayer({
-    video,
-    isSoundEnabled,
-    videoRef,
-}: VideoPlayerProps) {
+export default function VideoPlayer({ video, isSoundEnabled, videoRef }: VideoPlayerProps) {
     const internalVideoRef = useRef<HTMLVideoElement | null>(null);
     const thumbnailVideoRef = useRef<HTMLVideoElement | null>(null);
     const hlsRef = useRef<Hls | null>(null);
@@ -37,7 +32,7 @@ export default function VideoPlayer({
     const progressBarRef = useRef<HTMLDivElement | null>(null);
 
     const [isPlaying, setIsPlaying] = useState(false);
-    const [volume, setVolume] = useState(1);
+    const [volume, setVolume] = useState(isSoundEnabled ? 1 : 0);
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [showOverlay, setShowOverlay] = useState(false);
@@ -53,30 +48,41 @@ export default function VideoPlayer({
 
     const isHlsSource = video.source.includes('.m3u8');
 
-    // Helper: Convert SRT time to seconds
     const toSeconds = (timeStr: string) => {
         const parts = timeStr.split(/[:,]/).map(Number);
         return parts[0] * 3600 + parts[1] * 60 + parts[2] + parts[3] / 1000;
     };
 
-    // HLS setup and fallback
     useEffect(() => {
         const videoEl = internalVideoRef.current;
         if (!videoEl) return;
+
         if (isHlsSource && Hls.isSupported()) {
-            const hls = new Hls();
+            const hls = new Hls({
+                autoStartLoad: true,
+                startLevel: 0,
+                maxBufferLength: 30,
+                maxMaxBufferLength: 60,
+            });
             hlsRef.current = hls;
             hls.loadSource(video.source);
             hls.attachMedia(videoEl);
+
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                console.log('HLS manifest parsed, ready to buffer');
+            });
+
             hls.on(Hls.Events.ERROR, (event, data) => {
+                console.error('HLS Error:', data);
                 if (data.fatal) {
-                    console.error('HLS Error:', data);
                     hls.destroy();
+                    videoEl.src = video.source;
                 }
             });
         } else {
             videoEl.src = video.source;
         }
+
         return () => {
             if (hlsRef.current) {
                 hlsRef.current.destroy();
@@ -85,37 +91,45 @@ export default function VideoPlayer({
         };
     }, [video.source, isHlsSource]);
 
-    // Autoplay and video event listeners (force muted on load)
     useEffect(() => {
         const videoEl = internalVideoRef.current;
         if (!videoEl) return;
-        // Force muted on initial load for autoplay
-        videoEl.muted = !isSoundEnabled;
+
         videoEl.volume = volume;
-        const attemptAutoplay = () => {
-            if (!videoEl.paused) return;
+        videoEl.muted = true; // Start muted to ensure autoplay works
+        videoEl.playbackRate = 1;
+
+        const onLoadedMetadata = () => {
+            setDuration(videoEl.duration);
+            videoEl.currentTime = 0; // Reset to start
+            // Start muted autoplay when video is ready
             videoEl.play()
-                .then(() => setIsPlaying(true))
-                .catch((err) => {
-                    setIsPlaying(false);
-                });
+                .then(() => {
+                    setIsPlaying(true);
+                    console.log('Muted autoplay started');
+                })
+                .catch((err) => console.log('Muted autoplay failed:', err));
         };
-        attemptAutoplay();
-        const onLoadedMetadata = () => setDuration(videoEl.duration);
-        const onTimeUpdate = () => setCurrentTime(videoEl.currentTime);
+
+        const onTimeUpdate = () => {
+            setCurrentTime(videoEl.currentTime);
+        };
+
         const onPlay = () => setIsPlaying(true);
         const onPause = () => setIsPlaying(false);
+
         videoEl.addEventListener('loadedmetadata', onLoadedMetadata);
         videoEl.addEventListener('timeupdate', onTimeUpdate);
         videoEl.addEventListener('play', onPlay);
         videoEl.addEventListener('pause', onPause);
+
         return () => {
             videoEl.removeEventListener('loadedmetadata', onLoadedMetadata);
             videoEl.removeEventListener('timeupdate', onTimeUpdate);
             videoEl.removeEventListener('play', onPlay);
             videoEl.removeEventListener('pause', onPause);
         };
-    }, [video.source, isSoundEnabled, volume]);
+    }, [video.source, volume]);
 
     // Fetch and parse .srt captions using srt-parser-2
     useEffect(() => {
@@ -156,12 +170,14 @@ export default function VideoPlayer({
     const handlePlayPause = () => {
         if (!internalVideoRef.current) return;
         if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current);
-        if (internalVideoRef.current.paused) {
-            internalVideoRef.current.play()
+        const videoEl = internalVideoRef.current;
+        if (videoEl.paused) {
+            videoEl.muted = false; // Unmute on user click
+            videoEl.play()
                 .then(() => setIsPlaying(true))
                 .catch((err) => console.error('Play error:', err));
         } else {
-            internalVideoRef.current.pause();
+            videoEl.pause();
             setIsPlaying(false);
         }
         setShowOverlay(true);
@@ -184,7 +200,6 @@ export default function VideoPlayer({
         if (internalVideoRef.current) internalVideoRef.current.currentTime = newTime;
     };
 
-    // Thumbnail generation with error handling
     const generateThumbnail = (time: number) => {
         const videoEl = thumbnailVideoRef.current;
         if (!videoEl || !duration) return;
@@ -202,7 +217,7 @@ export default function VideoPlayer({
                     setThumbnailUrl(canvas.toDataURL('image/jpeg'));
                 } catch (err) {
                     console.error('Failed to generate thumbnail:', err);
-                    setThumbnailUrl(null); // Fallback to no thumbnail
+                    setThumbnailUrl(null);
                 }
             }
         };
@@ -271,22 +286,19 @@ export default function VideoPlayer({
 
     return (
         <div className="relative w-full h-[650px] rounded-xl">
-            {/* Main Video Element */}
             <video
                 onClick={handlePlayPause}
                 ref={(el) => {
                     internalVideoRef.current = el;
                     videoRef(el);
                 }}
-                src={video.source}
                 loop
                 playsInline
-                preload="metadata"
+                preload="auto"
                 crossOrigin="anonymous"
                 className="object-cover w-full h-[615px] rounded-xl cursor-pointer absolute bottom-0"
             />
 
-            {/* Hidden Video Element for Thumbnail Generation */}
             <video
                 ref={thumbnailVideoRef}
                 src={video.source}
@@ -296,7 +308,6 @@ export default function VideoPlayer({
                 className="hidden"
             />
 
-            {/* Volume Control */}
             <motion.div
                 className="absolute top-11 left-2 z-10 flex items-center p-2 rounded-full bg-black bg-opacity-50 cursor-pointer"
                 onHoverStart={() => setIsVolumeHovered(true)}
@@ -349,7 +360,6 @@ export default function VideoPlayer({
                 </motion.div>
             </motion.div>
 
-            {/* Bottom Overlay with Caption and Author */}
             <div
                 className="absolute bottom-0 left-0 w-full h-32 z-10 px-4 py-3 flex flex-col space-y-2 rounded-b-xl justify-end items-start"
                 style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.8) 100%)' }}
@@ -363,7 +373,6 @@ export default function VideoPlayer({
                     <span className="text-white font-bold">{video.authorName || 'Unknown'}</span>
                 </div>
 
-                {/* Caption Overlay */}
                 {currentCaption && (
                     <p className="bg-purple-600 bg-opacity-75 text-white px-3 py-1 rounded-md text-left line-clamp-2">
                         {currentCaption}

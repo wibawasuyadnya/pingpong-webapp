@@ -20,10 +20,11 @@ export interface RecorderSectionHandle {
 interface RecorderSectionProps {
     mode: "camera" | "screen";
     onRecordingStatusChange?: (isRecording: boolean) => void;
+    replyVideo: string | undefined;
 }
 
 const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
-    ({ mode, onRecordingStatusChange }, ref) => {
+    ({ mode, onRecordingStatusChange, replyVideo }, ref) => {
         const cameraRecorderRef = useRef<CameraRecorderHandle>(null);
         const screenRecorderRef = useRef<ScreenRecorderHandle>(null);
 
@@ -55,11 +56,13 @@ const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
                 {mode === "camera" ? (
                     <CameraRecorder
                         ref={cameraRecorderRef}
+                        replyVideo={replyVideo}
                         onRecordingStatusChange={onRecordingStatusChange}
                     />
                 ) : (
                     <ScreenRecorder
                         ref={screenRecorderRef}
+                        replyVideo={replyVideo}
                         onRecordingStatusChange={onRecordingStatusChange}
                     />
                 )}

@@ -32,7 +32,7 @@ export default function UploadButton({ activeId }: { activeId: string }) {
     };
 
     return (
-        <div className="fixed bottom-3 left-[57.5%] transform -translate-x-1/2 z-20 flex items-center gap-4">
+        <div className="z-20 flex items-center gap-4">
             {/* Child Buttons (visible when main button is clicked) */}
             {isOpen && (
                 <Fragment>

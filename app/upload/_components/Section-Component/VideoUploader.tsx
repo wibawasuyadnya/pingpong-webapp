@@ -17,7 +17,7 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-export default function VideoUploader() {
+export default function VideoUploader({ replyVideo }: { replyVideo: string | undefined }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -54,7 +54,7 @@ export default function VideoUploader() {
     baseName = baseName.replace(/\s+/g, "-");         // replace spaces with '-'
 
     // 4) Navigate
-    router.push(`/upload/${encodeURIComponent(baseName)}?post=new`);
+    router.push(`/upload/${encodeURIComponent(baseName)}?post=${replyVideo !== undefined ? replyVideo : 'new'}`);
   }
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
