@@ -307,7 +307,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                 />
                 {activeIndex !== null && uniqueVideos[activeIndex] && (
                     <div
-                        className="fixed bottom-2 right-0 z-20 flex flex-row items-end justify-center"
+                        className="fixed bottom-[13px] right-0 z-20 flex flex-row items-end justify-center"
                         style={{ width: "calc(100% - 203.6px)" }}
                     >
                         <UploadButton activeId={uniqueVideos[activeIndex].id} />
