@@ -4,7 +4,7 @@ import React from 'react';
 
 const VideoSkeleton = () => {
     return (
-        <div className="w-full max-w-[370px] h-[650px] bg-gray-300 animate-pulse rounded-lg" />
+        <div className="w-full max-w-[400px] h-[650px] bg-gray-300 animate-pulse rounded-lg" />
     );
 };
 

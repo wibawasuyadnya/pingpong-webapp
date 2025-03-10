@@ -2,15 +2,15 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 interface VolumeState {
-    volume: number;     // current volume (0 to 1)
-    isMuted: boolean;   // whether the user has toggled mute
-    lastVolume: number; // last non-zero volume before muting
+    volume: number;
+    isMuted: boolean;
+    lastVolume: number;
 }
 
 const initialState: VolumeState = {
-    volume: 1,       // default full volume
+    volume: 1,
     isMuted: false,
-    lastVolume: 1,   // remember the last non-zero volume
+    lastVolume: 1,
 };
 
 export const volumeSlice = createSlice({
