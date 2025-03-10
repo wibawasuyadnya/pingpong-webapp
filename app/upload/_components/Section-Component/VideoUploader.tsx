@@ -1,10 +1,12 @@
 "use client";
 import React, { useRef, useState } from "react";
-import { FileVideo, Proportions, Upload, Video } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAppDispatch } from "@/redux/hook";
 import { setVideo } from "@/redux/slices/videoSlice";
+import { Upload, Video, FileVideo } from "lucide-react";
+import { FileX, CheckCircle2 } from "lucide-react";
 
+// Convert a File to base64 (for Redux or preview).
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -17,30 +19,59 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-export default function VideoUploader({ replyVideo }: { replyVideo: string | undefined }) {
+type UploadStatus = "idle" | "uploading" | "success" | "error";
+
+export default function VideoUploader({
+  replyVideo,
+}: {
+  replyVideo: string | undefined;
+}) {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Basic file info
   const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
+  const [fileName, setFileName] = useState("");
+  const [fileSizeMB, setFileSizeMB] = useState(0);
 
-  const [fileName, setFileName] = useState<string>("");
-  const [fileSizeMB, setFileSizeMB] = useState<number>(0);
+  // Simulated upload
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState<UploadStatus>("idle");
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith("video/")) {
+      await handleSelectedFile(file);
+    }
+  };
+
+  // Drag & Drop
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith("video/")) {
+      await handleSelectedFile(file);
+    }
+  };
+
   async function handleSelectedFile(file: File) {
-    // Update local states
     setSelectedVideo(file);
     setFileName(file.name);
-    setFileSizeMB(file.size / (1024 * 1024));
+    const sizeMB = file.size / (1024 * 1024);
+    setFileSizeMB(sizeMB);
 
-    // 1) Convert to base64
+    // Convert to base64 for Redux
     const base64Video = await fileToBase64(file);
-
-    // 2) Dispatch to Redux
     dispatch(
       setVideo({
         base64Data: base64Video,
@@ -49,32 +80,64 @@ export default function VideoUploader({ replyVideo }: { replyVideo: string | und
       })
     );
 
-    // 3) Remove extension, then remove spaces => dashes
-    let baseName = file.name.replace(/\.[^/.]+$/, ""); // remove extension
-    baseName = baseName.replace(/\s+/g, "-");         // replace spaces with '-'
+    // Keep extension in the URL
+    const encodedName = encodeURIComponent(file.name);
 
-    // 4) Navigate
-    router.push(`/upload/${encodeURIComponent(baseName)}?post=${replyVideo !== undefined ? replyVideo : 'new'}`);
+    // Start a dynamic simulated upload
+    setProgress(0);
+    setStatus("uploading");
+
+    // For example, 5 MB/s
+    const uploadRateMBps = 5;
+    let totalTimeSec = sizeMB / uploadRateMBps;
+
+    // We'll increment every 100 ms to get smoother steps
+    const intervalMs = 100;
+    let intervalsCount = Math.ceil((totalTimeSec * 1000) / intervalMs);
+
+    // We can clamp intervalsCount so that small files won't appear super slow
+    // and large files won't have huge jumps.
+    intervalsCount = Math.max(intervalsCount, 5);
+    intervalsCount = Math.min(intervalsCount, 1000);
+
+    let currentInterval = 0;
+    const timer = setInterval(() => {
+      currentInterval++;
+      const increment = 100 / intervalsCount;
+      setProgress((prev) => {
+        const newVal = prev + increment;
+        return newVal > 100 ? 100 : newVal;
+      });
+
+      if (currentInterval >= intervalsCount) {
+        clearInterval(timer);
+        setProgress(100);
+        setStatus("success");
+
+        // After a short pause, navigate
+        setTimeout(() => {
+          router.push(
+            `/upload/${encodedName}?post=${replyVideo !== undefined ? replyVideo : "new"
+            }`
+          );
+        }, 800);
+      }
+    }, intervalMs);
   }
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type.startsWith("video/")) {
-      await handleSelectedFile(file);
-    }
+  // Remove or cancel
+  const handleRemove = () => {
+    setSelectedVideo(null);
+    setFileName("");
+    setFileSizeMB(0);
+    setProgress(0);
+    setStatus("idle");
   };
 
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
-  const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const file = event.dataTransfer.files[0];
-    if (file && file.type.startsWith("video/")) {
-      await handleSelectedFile(file);
+  // If we want to handle error states
+  const handleRetry = () => {
+    if (selectedVideo) {
+      handleSelectedFile(selectedVideo);
     }
   };
 
@@ -94,6 +157,7 @@ export default function VideoUploader({ replyVideo }: { replyVideo: string | und
         />
 
         {!selectedVideo ? (
+          // No file selected
           <div className="flex flex-col gap-3 justify-center items-center w-fit">
             <Upload className="mx-auto size-20 text-black" />
             <h2 className="text-xl font-bold text-center text-black">
@@ -113,17 +177,78 @@ export default function VideoUploader({ replyVideo }: { replyVideo: string | und
             </button>
           </div>
         ) : (
+          // A file is selected
           <div className="flex flex-col gap-3 justify-center items-center w-full">
-            {/* Simple info, but no real progress here, because real upload is on the post page */}
-            <p className="font-semibold text-base text-black">File: {fileName}</p>
-            <p className="text-sm text-black">Size: {fileSizeMB.toFixed(2)} MB</p>
-            <p className="text-sm text-gray-600">
-              Redirecting to post page...
-            </p>
+            <div className="w-full max-w-[400px] bg-white p-3 rounded-lg border border-[#DDDDDD] space-y-2 relative">
+              {/* File name + size + remove button */}
+              <div className="flex flex-row justify-between items-start">
+                <div>
+                  <h1 className="text-sm font-normal text-black">{fileName}</h1>
+                  <p className="text-xs text-black">
+                    {fileSizeMB.toFixed(2)} MB
+                  </p>
+                </div>
+                <button onClick={handleRemove}>
+                  <FileX size={20} className="text-gray-600 hover:text-black" />
+                </button>
+              </div>
+
+              {/* Progress / status display */}
+              {status === "uploading" && (
+                <div>
+                  {/* Purple bar + percentage */}
+                  <div className="w-full bg-[#F1F1F1] h-2 rounded-full relative mt-2 overflow-hidden">
+                    <div
+                      // The transition-all + linear helps the bar move smoothly
+                      className="bg-[#B14AE2] h-2 rounded-full transition-all duration-100 linear"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <div className="text-right text-xs text-black">
+                    {Math.round(progress)}%
+                  </div>
+                </div>
+              )}
+
+              {status === "success" && (
+                <div>
+                  {/* Green bar + check icon */}
+                  <div className="w-full bg-[#F1F1F1] h-2 rounded-full relative mt-2 overflow-hidden">
+                    <div
+                      className="bg-green-500 h-2 rounded-full transition-all duration-200 linear"
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div className="flex flex-row items-center gap-2 text-green-600 text-sm mt-2">
+                    <CheckCircle2 size={18} />
+                    <span>Upload Complete</span>
+                  </div>
+                </div>
+              )}
+
+              {status === "error" && (
+                <div className="text-red-600 space-y-2">
+                  <p className="text-sm font-semibold">
+                    Upload failed, please try again
+                  </p>
+                  <button
+                    onClick={handleRetry}
+                    className="px-4 py-1 bg-red-600 text-white rounded-lg text-sm"
+                  >
+                    Try again
+                  </button>
+                </div>
+              )}
+
+              {status === "idle" && (
+                <p className="text-xs text-gray-600">Ready to upload</p>
+              )}
+            </div>
           </div>
         )}
       </div>
 
+      {/* Additional info sections */}
       <div className="flex flex-row justify-between">
         <div className="flex flex-row gap-4">
           <Video className="size-7 text-black" />

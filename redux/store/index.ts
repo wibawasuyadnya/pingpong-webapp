@@ -12,7 +12,7 @@ import { persistStore, persistReducer } from "redux-persist";
 const persistConfig = {
   key: "root",
   storage,
-  whitelist: ["global"],
+  whitelist: ["global", "volume"],
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);

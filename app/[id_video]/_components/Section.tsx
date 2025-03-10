@@ -1,48 +1,52 @@
-// app/[id_video]/_components/Section.tsx
 'use client';
 import React, { useEffect, useState, useCallback, memo } from 'react';
 import { SessionData, Video } from '@/types/type';
-import { useDecryptedUserHook } from '@/hook/useDecryptedUser';
-import getHeaderClientSide from '@/lib/getHeaderClientSide';
+import getHeader from '@/lib/getHeader'; 
 import { apiUrl } from '@/utils/envConfig';
 import VideoFeed from './Section-Components/VideoFeed';
 
-function Section() {
+interface SectionProps {
+    session: SessionData;
+}
+
+//  throttle
+function throttle(func: (...args: any[]) => void, limit: number) {
+    let inThrottle = false;
+    return function (...args: any[]) {
+        if (!inThrottle) {
+            func(...args);
+            inThrottle = true;
+            setTimeout(() => (inThrottle = false), limit);
+        }
+    };
+}
+
+function Section({ session }: SectionProps) {
     const [videos, setVideos] = useState<Video[]>([]);
     const [currentPage, setCurrentPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
-    const [session, setSession] = useState<SessionData>({ isLoggedIn: false, user: null });
     const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-    const decryptedUser = useDecryptedUserHook(session.user);
 
-    // Fetch session data
-    useEffect(() => {
-        const fetchSession = async () => {
-            try {
-                const response = await fetch('/api/auth/user', { credentials: 'include' });
-                const data: SessionData = await response.json();
-                setSession(data);
-            } catch (error) {
-                console.error('Error fetching session:', error);
-                setSession({ isLoggedIn: false, user: null });
-            } finally {
-                setIsInitialLoading(false);
-            }
-        };
-        fetchSession();
-    }, []);
-
+    // 2) fetchVideos logic
     const fetchVideos = useCallback(
         async (page: number) => {
             try {
-                const headers = await getHeaderClientSide({ user: decryptedUser });
-                const res = await fetch(`${apiUrl}/api/video?page=${page}&limit=10`, { headers });
+                // Use getHeader now
+                const headers = await getHeader({ user: session.user });
+
+                // e.g. fetch from your API
+                const res = await fetch(`${apiUrl}/api/video?page=${page}&limit=10`, {
+                    headers,
+                });
                 const data = await res.json();
+
                 if (data?.data && data.data.length > 0) {
                     setVideos((prev) => {
-                        const newVideos = data.data.filter((newVideo: Video) => !prev.some((v) => v.id === newVideo.id));
+                        const newVideos = data.data.filter(
+                            (newVideo: Video) => !prev.some((v) => v.id === newVideo.id)
+                        );
                         return [...prev, ...newVideos];
                     });
                     setHasMore(page < data.meta.last_page);
@@ -54,19 +58,21 @@ function Section() {
                 setHasMore(false);
             }
         },
-        [decryptedUser]
+        [session]
     );
 
-    // Initial load: page 1
+    // 3) On mount, load page 1
     useEffect(() => {
-        if (decryptedUser && isInitialLoading === false) {
+        // We already have session from the server, so no need to fetch session here
+        if (session) {
             setVideos([]);
             setCurrentPage(1);
             fetchVideos(1);
         }
-    }, [decryptedUser, fetchVideos, isInitialLoading]);
+        setIsInitialLoading(false);
+    }, [session, fetchVideos]);
 
-    // Load more function (throttled)
+    // 4) Throttled loadMore
     const loadMoreVideos = useCallback(
         throttle(async () => {
             if (!hasMore || loadingMore) return;
@@ -75,7 +81,7 @@ function Section() {
             await fetchVideos(nextPage);
             setCurrentPage(nextPage);
             setLoadingMore(false);
-        }, 1000), // Throttle to 1 request per second
+        }, 1000),
         [currentPage, hasMore, fetchVideos, loadingMore]
     );
 
@@ -90,18 +96,6 @@ function Section() {
             />
         </div>
     );
-}
-
-// Simple throttle implementation
-function throttle(func: (...args: any[]) => void, limit: number) {
-    let inThrottle: boolean;
-    return function (...args: any[]) {
-        if (!inThrottle) {
-            func(...args);
-            inThrottle = true;
-            setTimeout(() => (inThrottle = false), limit);
-        }
-    };
 }
 
 export default memo(Section);

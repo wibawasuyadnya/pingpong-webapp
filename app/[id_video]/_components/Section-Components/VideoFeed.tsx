@@ -31,7 +31,8 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const scrollPositionRef = useRef<number>(0);
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
-    const [hasUserPlayedVideo, setHasUserPlayedVideo] = useState(false); // Track if user has clicked to play
+    const [hasUserPlayedVideo, setHasUserPlayedVideo] = useState(false); // Tracks if the user has clicked to play
+    const [initialActiveSet, setInitialActiveSet] = useState(false); // Only set active index from URL on first load
 
     const uniqueVideos = useMemo(() => {
         const seenIds = new Set();
@@ -44,19 +45,26 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
 
     const isTargetVideoLoaded = currentVideoId ? uniqueVideos.some((video) => video.id === currentVideoId) : true;
 
+    // If currentVideoId is provided and not yet in our list, load more.
     useEffect(() => {
         if (currentVideoId && !isTargetVideoLoaded && hasMore && !loadingMore) {
             loadMore();
         }
     }, [currentVideoId, isTargetVideoLoaded, hasMore, loadingMore, loadMore]);
 
+    // IntersectionObserver for lazy loading:
     useEffect(() => {
         const options = { rootMargin: '0px', threshold: 0.5 };
         const handleIntersection = (entries: IntersectionObserverEntry[]) => {
             entries.forEach((entry) => {
                 const video = entry.target as HTMLVideoElement;
-                if (!entry.isIntersecting && !video.paused) {
-                    video.pause();
+                if (entry.isIntersecting) {
+                    video.preload = "auto";
+                } else {
+                    video.preload = "none";
+                    if (!video.paused) {
+                        video.pause();
+                    }
                 }
             });
         };
@@ -69,14 +77,14 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
         const video = videoRefs.current[index];
         if (!video) return;
 
-        // Pause all other videos before playing the active one
+        // Pause all other videos before playing the active one.
         videoRefs.current.forEach((v, idx) => {
             if (v && idx !== index && !v.paused) {
                 v.pause();
             }
         });
 
-        video.muted = false; // Ensure sound is enabled
+        video.muted = false; // Ensure sound is enabled.
         video.play()
             .then(() => {
                 console.log(`Playing video at index ${index} with sound`);
@@ -112,13 +120,14 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                 });
             }
 
+            // Update activeIndex if it changed.
             if (activeIndex !== closestIndex) {
                 setActiveIndex(closestIndex);
                 const activeVideo = videoRefs.current[closestIndex];
                 if (activeVideo) {
                     videoRefs.current.forEach((video) => video?.classList.remove('active-video'));
                     activeVideo.classList.add('active-video');
-                    // Only autoplay if the user has previously played a video
+                    // Only autoplay if user has previously played a video.
                     if (hasUserPlayedVideo) {
                         playActiveVideo(closestIndex);
                     }
@@ -167,20 +176,17 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
         };
     }, [handleScroll]);
 
+    // Set activeIndex from URL only on initial load.
     useEffect(() => {
-        const activeIdx = uniqueVideos.findIndex((video) => video.id === currentVideoId);
-        if (activeIdx >= 0 && videoRefs.current[activeIdx]) {
-            setActiveIndex(activeIdx);
-            const activeVideo = videoRefs.current[activeIdx];
-            activeVideo.scrollIntoView({ behavior: 'auto' });
-            // Ensure no autoplay on initial load
-            videoRefs.current.forEach((video, idx) => {
-                if (video && idx !== activeIdx && !video.paused) {
-                    video.pause();
-                }
-            });
+        if (!initialActiveSet && currentVideoId) {
+            const activeIdx = uniqueVideos.findIndex((video) => video.id === currentVideoId);
+            if (activeIdx >= 0 && videoRefs.current[activeIdx]) {
+                setActiveIndex(activeIdx);
+                videoRefs.current[activeIdx].scrollIntoView({ behavior: 'auto' });
+                setInitialActiveSet(true);
+            }
         }
-    }, [currentVideoId, uniqueVideos]);
+    }, [currentVideoId, uniqueVideos, initialActiveSet]);
 
     useEffect(() => {
         const container = containerRef.current;
@@ -227,7 +233,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
     const renderContent = () => {
         if (isInitialLoading || (currentVideoId && !uniqueVideos.some((video) => video.id === currentVideoId))) {
             return (
-                <div className="w-full h-[650px] flex items-center justify-center">
+                <div className="w-full h-[700px] flex items-center justify-center">
                     <VideoSkeleton />
                 </div>
             );
@@ -237,11 +243,11 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
             <Fragment>
                 <div
                     ref={containerRef}
-                    className="h-[650px] overflow-y-scroll snap-y snap-mandatory no-scrollbar relative"
+                    className="h-[700px] overflow-y-scroll snap-y snap-mandatory no-scrollbar relative"
                     style={{ overscrollBehavior: 'contain' }}
                 >
                     <div
-                        className="fixed top-15 right-0 z-20 flex flex-row items-end justify-center"
+                        className="fixed top-10 right-0 z-20 flex flex-row items-end justify-center"
                         style={{ width: 'calc(100% - 203.6px)' }}
                     >
                         <div className="w-[400px] flex flex-row justify-between items-center px-3">
@@ -266,10 +272,10 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                         return (
                             <div
                                 key={`${video.id}-${index}`}
-                                className={`relative h-[650px] w-full flex items-center justify-center snap-start ${index > 0 ? 'mt-[50px]' : ''}`}
+                                className={`relative h-[660px] w-full flex items-center justify-center snap-start ${index > 0 ? 'mt-[50px]' : ''}`}
                                 style={{ scrollSnapStop: 'always' }}
                             >
-                                <div className={`relative ${containerPaddingClass} w-full max-w-[400px]`}>
+                                <div className={`relative ${containerPaddingClass} w-[420px] max-w-[450px]`}>
                                     <VideoPlayer
                                         video={{
                                             id: video.id,
@@ -283,7 +289,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                                         }}
                                         videoRef={(el) => (videoRefs.current[index] = el)}
                                         isSoundEnabled={true}
-                                        onUserPlay={() => setHasUserPlayedVideo(true)} 
+                                        onUserPlay={() => setHasUserPlayedVideo(true)}
                                     />
                                     <SideControlBar controlsBottomClass={controlsBottomClass} />
                                 </div>

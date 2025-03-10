@@ -1,6 +1,5 @@
 "use client";
 import { User } from "@/types/type";
-import { secretKey } from "@/utils/envConfig";
 import { HeaderProvider } from "./headerProvider";
 
 interface GetHeaderClientSideProps {
