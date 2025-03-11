@@ -9,20 +9,16 @@ export default function Section({ replyVideo }: { replyVideo: string | undefined
     const [selectedRecordingType, setSelectedRecordingType] = useState("camera");
     const [isRecording, setIsRecording] = useState(false);
 
-    // Force exactly one panel open at a time:
     const [expandedPanel, setExpandedPanel] = useState<"recorder" | "uploader">("recorder");
 
-    // Switch to "recorder" panel. If it's already "recorder," do nothing.
     const showRecorderPanel = () => {
         setExpandedPanel((prev) => (prev === "recorder" ? "recorder" : "recorder"));
     };
 
-    // Switch to "uploader" panel. If it's already "uploader," do nothing.
     const showUploaderPanel = () => {
         setExpandedPanel((prev) => (prev === "uploader" ? "uploader" : "uploader"));
     };
 
-    // Start/stop recording
     const handleToggleRecording = async () => {
         if (!isRecording) {
             await recorderRef.current?.startRecording();
@@ -36,9 +32,8 @@ export default function Section({ replyVideo }: { replyVideo: string | undefined
     return (
         <div className="w-full p-8 space-y-5 overflow-y-scroll h-[1000px]">
 
-            {/* ------------------------------------------- */}
-            {/* ACCORDION ITEM: RECORDER                    */}
-            {/* ------------------------------------------- */}
+            {/* accordion item: recorder */}
+
             <div className="bg-white rounded-md h-fit px-5 py-3 space-y-3">
                 {/* Header (always visible) */}
                 <div
@@ -132,9 +127,8 @@ export default function Section({ replyVideo }: { replyVideo: string | undefined
                 </AnimatePresence>
             </div>
 
-            {/* ------------------------------------------- */}
-            {/* ACCORDION ITEM: VIDEO UPLOADER             */}
-            {/* ------------------------------------------- */}
+
+            {/* accordion item: video uploader */}
             <div className="bg-white rounded-md h-fit px-5 py-3 space-y-3">
                 {/* Header (always visible) */}
                 <div
@@ -164,9 +158,7 @@ export default function Section({ replyVideo }: { replyVideo: string | undefined
                 </AnimatePresence>
             </div>
 
-            {/* ------------------------------------------- */}
-            {/* The actual RecorderSection (always in DOM)  */}
-            {/* ------------------------------------------- */}
+            {/* The actual RecorderSection (always in DOM) */}
             <RecorderSection
                 ref={recorderRef}
                 replyVideo={replyVideo}

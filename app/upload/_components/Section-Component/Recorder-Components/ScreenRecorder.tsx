@@ -44,18 +44,15 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
         const router = useRouter();
         const dispatch = useAppDispatch();
 
-        // Recording states
         const [recordingPhase, setRecordingPhase] = useState<"idle" | "countdown" | "recording">("idle");
         const [countdown, setCountdown] = useState<number | null>(null);
         const [isPaused, setIsPaused] = useState(false);
         const [timer, setTimer] = useState(0);
         const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
 
-        // UI states
         const [showUI, setShowUI] = useState(false);
         const [showScreenPrompt, setShowScreenPrompt] = useState(false);
 
-        // Refs for MediaRecorder, streams, etc.
         const mediaRecorderRef = useRef<MediaRecorder | null>(null);
         const recordedChunksRef = useRef<Blob[]>([]);
         const streamRef = useRef<MediaStream | null>(null);
@@ -76,11 +73,9 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
         const startRecordingProcess = async () => {
             setShowUI(true);
             try {
-                // 1) Request microphone audio
                 const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 micStreamRef.current = micStream;
 
-                // 2) Pick a MIME type
                 const preferredMimeType = "video/mp4; codecs=avc1";
                 const fallbackMimeType = "video/webm; codecs=vp9";
                 const mimeType = MediaRecorder.isTypeSupported(preferredMimeType)
@@ -89,7 +84,6 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
                         ? fallbackMimeType
                         : "video/webm";
 
-                // 3) Merge mic + screen
                 audioContextRef.current = new AudioContext();
                 destinationRef.current = audioContextRef.current.createMediaStreamDestination();
                 const micSource = audioContextRef.current.createMediaStreamSource(micStream);
@@ -100,7 +94,6 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
                     ...destinationRef.current.stream.getAudioTracks(),
                 ]);
 
-                // 4) Setup the MediaRecorder
                 const mediaRecorder = new MediaRecorder(combinedStream, { mimeType });
                 mediaRecorderRef.current = mediaRecorder;
                 recordedChunksRef.current = [];
@@ -111,17 +104,14 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
                     }
                 };
 
-                // 5) onstop: build the final Blob, parse ephemeral ID, navigate
                 mediaRecorder.onstop = async () => {
                     const blob = new Blob(recordedChunksRef.current, { type: mimeType });
                     setRecordedBlob(blob);
 
-                    // Cleanup local
                     setRecordingPhase("idle");
                     setShowUI(false);
                     cleanupStreams();
 
-                    // Convert to base64 and store in Redux
                     const base64Video = await blobToBase64(blob);
                     dispatch(
                         setVideo({
@@ -131,17 +121,14 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
                         })
                     );
 
-                    // Create a preview URL
                     const previewUrl = URL.createObjectURL(blob);
 
-                    // Parse ephemeral ID from the blob URL
                     let ephemeralId = "";
                     const slashIndex = previewUrl.lastIndexOf("/");
                     if (slashIndex !== -1) {
                         ephemeralId = previewUrl.substring(slashIndex + 1);
                     }
 
-                    // Navigate to /upload/[ephemeralId].mp4?post=new
                     router.push(`/upload/${ephemeralId}.mp4?post=${replyVideo !== undefined ? replyVideo : "new"}`);
                 };
 
@@ -149,7 +136,6 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
                     console.error("MediaRecorder error:", event);
                 };
 
-                // If any track ends unexpectedly, stop the recorder
                 combinedStream.getTracks().forEach((track) => {
                     track.onended = () => {
                         if (mediaRecorderRef.current?.state === "recording") {
@@ -158,7 +144,6 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
                     };
                 });
 
-                // 6) Start recording
                 mediaRecorder.start(1000);
                 timerIntervalRef.current = setInterval(() => {
                     setTimer((prev) => prev + 1);
@@ -178,7 +163,6 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
                 const displayStream = await getDisplayStream(mode);
                 streamRef.current = displayStream;
 
-                // 3-second countdown
                 setRecordingPhase("countdown");
                 let count = 3;
                 setCountdown(count);
@@ -225,7 +209,7 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
             }
         };
 
-        /** Pause the recording. */
+        /** Pause recording. */
         const onPause = () => {
             if (mediaRecorderRef.current && recordingPhase === "recording") {
                 mediaRecorderRef.current.pause();
@@ -234,7 +218,7 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
             }
         };
 
-        /** Resume the recording. */
+        /** Resume recording. */
         const onResume = () => {
             if (mediaRecorderRef.current && recordingPhase === "recording") {
                 mediaRecorderRef.current.resume();
@@ -245,7 +229,7 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
             }
         };
 
-        /** Closes the recorder UI if user hits the "X" button. */
+        /** Closes recorder UI if "X" button clicked. */
         const onClose = () => {
             if (mediaRecorderRef.current && recordingPhase === "recording") {
                 mediaRecorderRef.current.stop();

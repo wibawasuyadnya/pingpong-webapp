@@ -157,8 +157,6 @@ export default function VideoDetailPreview({
             setUploadSuccess(null);
 
             const blob = base64ToBlob(video_preview, "video/mp4");
-
-            // Step 1: Fetch S3 object key from backend
             const keyFormData = new FormData();
             keyFormData.append("file_name", `${video_filename}.mp4`);
 
@@ -175,8 +173,6 @@ export default function VideoDetailPreview({
             }
 
             const objectKey = keyData.key;
-
-            // Step 2: Upload video to S3 via Next.js API route
             const formData = new FormData();
             formData.append("video", blob, "myVideo.mp4");
             formData.append("objectKey", objectKey);
@@ -195,8 +191,6 @@ export default function VideoDetailPreview({
                 setIsUploading(false);
                 return;
             }
-
-            // Step 3: Send metadata to backend API
             const metadataFormData = new FormData();
             metadataFormData.append("video", `${video_filename}.mp4`);
             metadataFormData.append("thread_name", threadName || "My First Video PWA");
@@ -220,8 +214,6 @@ export default function VideoDetailPreview({
 
             console.log("Metadata uploaded successfully:", metadataData);
             setUploadSuccess(true);
-
-            // Step 4: Redirect to root page
             router.push("/");
         } catch (error) {
             console.error("Upload exception:", error);

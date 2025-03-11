@@ -15,14 +15,9 @@ interface SectionProps {
 
 export default function Section({ videoFilename, post, session }: SectionProps) {
     const router = useRouter();
-
-    // Redux fields
     const { base64Data, size } = useSelector((state: RootState) => state.video);
-
-    // Convert size from bytes to MB
     const sizeMB = size ? (size / (1024 * 1024)).toFixed(2) : "0";
 
-    // If no base64, go back to /upload
     useEffect(() => {
         if (!base64Data) {
             console.warn("No video data in Redux; redirecting back to /upload...");
@@ -30,7 +25,6 @@ export default function Section({ videoFilename, post, session }: SectionProps) 
         }
     }, [base64Data, router]);
 
-    // Warn user on refresh/close if we have a video in memory
     useEffect(() => {
         if (!base64Data) return;
 
@@ -55,7 +49,7 @@ export default function Section({ videoFilename, post, session }: SectionProps) 
             <VideoAttachTitle video_size={sizeMB} video_title={videoFilename} />
 
             {/* Show local preview from base64 */}
-            <VideoDetailPreview video_preview={base64Data} post={post} session={session} video_filename={videoFilename}/>
+            <VideoDetailPreview video_preview={base64Data} post={post} session={session} video_filename={videoFilename} />
         </div>
     );
 }

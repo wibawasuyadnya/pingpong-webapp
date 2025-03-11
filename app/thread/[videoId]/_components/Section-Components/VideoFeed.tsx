@@ -1,15 +1,14 @@
-// app/[id_video]/_components/Section-Components/VideoFeed.tsx
+// app/thread/[videoId]/_components/Section-Components/VideoFeed.tsx
 "use client";
 import { Video } from "@/types/type";
 import { ChevronRight } from "lucide-react";
-import { useParams } from "next/navigation";
-import VideoPlayer from "./VideoFeed-Components/VideoPlayer";
-import UploadButton from "./VideoFeed-Components/UploadButton";
-import VideoSkeleton from "./VideoFeed-Components/VideoSkeleton";
-import SideControlBar from "./VideoFeed-Components/SideControlBar";
-import NavigationArrows from "./VideoFeed-Components/NavigatorArrow";
-import React, { useRef, useEffect, useMemo, useCallback, useState, Fragment } from "react";
 import { useAppSelector } from "@/redux/hook";
+import VideoPlayer from "@/components/Layout-Components/VideoFeed-Components/VideoPlayer";
+import React, { useRef, useEffect, useMemo, useCallback, useState, Fragment } from "react";
+import UploadButton from "@/components/Layout-Components/VideoFeed-Components/UploadButton";
+import VideoSkeleton from "@/components/Layout-Components/VideoFeed-Components/VideoSkeleton";
+import SideControlBar from "@/components/Layout-Components/VideoFeed-Components/SideControlBar";
+import NavigationArrows from "@/components/Layout-Components/VideoFeed-Components/NavigatorArrow";
 
 interface VideoFeedProps {
     videos: Video[];
@@ -17,17 +16,10 @@ interface VideoFeedProps {
     hasMore: boolean;
     loadingMore: boolean;
     isInitialLoading: boolean;
+    currentVideoId?: string;
 }
 
-export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isInitialLoading }: VideoFeedProps) {
-    const { id_video } = useParams();
-    const currentVideoId =
-        typeof id_video === "string"
-            ? id_video
-            : Array.isArray(id_video)
-                ? id_video[0]
-                : undefined;
-
+export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isInitialLoading, currentVideoId }: VideoFeedProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -130,7 +122,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
 
             if (uniqueVideos[closestIndex]) {
                 const newId = uniqueVideos[closestIndex].id;
-                window.history.replaceState(window.history.state, "", `/${newId}`);
+                window.history.replaceState(window.history.state, "", `/thread/${newId}`);
             }
 
             if (hasMore) {
@@ -194,7 +186,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
             const videoEl = videoRefs.current[newIndex];
             if (videoEl) {
                 videoEl.scrollIntoView({ behavior: "smooth" });
-                window.history.replaceState(window.history.state, "", `/${uniqueVideos[newIndex].id}`);
+                window.history.replaceState(window.history.state, "", `/thread/${uniqueVideos[newIndex].id}`);
                 setActiveIndex(newIndex);
                 if (hasUserPlayedVideo) {
                     playActiveVideo(newIndex);
@@ -209,7 +201,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
             const videoEl = videoRefs.current[newIndex];
             if (videoEl) {
                 videoEl.scrollIntoView({ behavior: "smooth" });
-                window.history.replaceState(window.history.state, "", `/${uniqueVideos[newIndex].id}`);
+                window.history.replaceState(window.history.state, "", `/thread/${uniqueVideos[newIndex].id}`);
                 setActiveIndex(newIndex);
                 if (hasUserPlayedVideo) {
                     playActiveVideo(newIndex);
@@ -258,8 +250,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                                 <ChevronRight size={24} className="text-white" />
                             </div>
                             <div className="flex flex-row justify-start items-center gap-4">
-                                <h2 className="font-bold text-base text-white">Feed</h2>
-                                <span className="icon-[material-symbols--circle] text-[#B14AE2] text-sm"></span>
+                                <h2 className="font-bold text-base text-white">Thread</h2>
                             </div>
                         </div>
                     </div>

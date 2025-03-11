@@ -1,3 +1,4 @@
+// app/upload/_components/Section-Component/Recorder-Components/CameraRecorder.tsx
 "use client";
 import React, {
     useImperativeHandle,
@@ -183,9 +184,7 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(
                 if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
                 setTimer(0);
 
-                // 1) Convert blob to base64
                 const base64Video = await blobToBase64(mp4Blob);
-                // 2) Dispatch to Redux
                 dispatch(
                     setVideo({
                         base64Data: base64Video,
@@ -194,12 +193,9 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(
                     })
                 );
 
-                // 3) Generate a random ID for the route push
                 const randomId = crypto.randomUUID();
                 const videoFilename = `${randomId}.mp4`;
 
-                // 4) Navigate to /upload/[videoFilename]?post=new
-                // This is where your dynamic route picks it up
                 router.push(`/upload/${videoFilename}?post=${replyVideo !== undefined ? replyVideo : "new"}`);
             };
 

@@ -12,7 +12,7 @@ import {
 
 interface RecorderControlsProps {
     isRecording: boolean;
-    isPaused: boolean; // new prop
+    isPaused: boolean; 
     countdown: number | null;
     timer: number;
     aspect: "portrait" | "landscape";
@@ -72,7 +72,6 @@ export default function RecorderControls({
                     )}
                 </button>
 
-                {/* Pause / Resume Controls */}
                 {isRecording && !isPaused && (
                     <div
                         className="rounded-full border-white border-[3px] p-2 cursor-pointer"
@@ -91,7 +90,6 @@ export default function RecorderControls({
                     </div>
                 )}
 
-                {/* Aspect Ratio Buttons (active only before recording starts) */}
                 <div className="flex items-center gap-1">
                     <button
                         onClick={() => onChangeAspect("portrait")}
@@ -135,7 +133,6 @@ export default function RecorderControls({
                     </button>
                 </div>
 
-                {/* Close Button */}
                 <X onClick={onClose} className="text-white size-6 cursor-pointer" />
             </div>
         </div>

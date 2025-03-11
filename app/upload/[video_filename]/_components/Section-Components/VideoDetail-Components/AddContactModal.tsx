@@ -40,9 +40,6 @@ export default function AddContactModal({ postId, onClose, session, onSave }: Ad
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    console.log(users);
-
-    // Effect to disable root scroll when modal is open
     useEffect(() => {
         const originalStyle = window.getComputedStyle(document.body).overflow;
         document.body.style.overflow = "hidden";

@@ -2,7 +2,7 @@
 'use server';
 import Layout from '@/components/Layout';
 import Section from './_components/Section';
-import React, { memo } from 'react';
+import React from 'react';
 import { SessionData } from '@/types/type';
 import { getSessionUser } from '@/lib/getUserSession';
 

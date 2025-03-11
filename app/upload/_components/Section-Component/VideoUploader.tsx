@@ -6,7 +6,6 @@ import { setVideo } from "@/redux/slices/videoSlice";
 import { Upload, Video, FileVideo } from "lucide-react";
 import { FileX, CheckCircle2 } from "lucide-react";
 
-// Convert a File to base64 (for Redux or preview).
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -30,12 +29,12 @@ export default function VideoUploader({
   const dispatch = useAppDispatch();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Basic file info
+
   const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
   const [fileSizeMB, setFileSizeMB] = useState(0);
 
-  // Simulated upload
+
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<UploadStatus>("idle");
 
@@ -50,7 +49,7 @@ export default function VideoUploader({
     }
   };
 
-  // Drag & Drop
+
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -69,8 +68,6 @@ export default function VideoUploader({
     setFileName(file.name);
     const sizeMB = file.size / (1024 * 1024);
     setFileSizeMB(sizeMB);
-
-    // Convert to base64 for Redux
     const base64Video = await fileToBase64(file);
     dispatch(
       setVideo({
@@ -79,28 +76,19 @@ export default function VideoUploader({
         type: file.type,
       })
     );
-
-    // Keep extension in the URL
     const encodedName = encodeURIComponent(file.name);
-
-    // Start a dynamic simulated upload
+    
     setProgress(0);
     setStatus("uploading");
-
-    // For example, 5 MB/s
+    
     const uploadRateMBps = 5;
     let totalTimeSec = sizeMB / uploadRateMBps;
-
-    // We'll increment every 100 ms to get smoother steps
     const intervalMs = 100;
     let intervalsCount = Math.ceil((totalTimeSec * 1000) / intervalMs);
-
-    // We can clamp intervalsCount so that small files won't appear super slow
-    // and large files won't have huge jumps.
     intervalsCount = Math.max(intervalsCount, 5);
     intervalsCount = Math.min(intervalsCount, 1000);
-
     let currentInterval = 0;
+    
     const timer = setInterval(() => {
       currentInterval++;
       const increment = 100 / intervalsCount;
@@ -114,7 +102,7 @@ export default function VideoUploader({
         setProgress(100);
         setStatus("success");
 
-        // After a short pause, navigate
+
         setTimeout(() => {
           router.push(
             `/upload/${encodedName}?post=${replyVideo !== undefined ? replyVideo : "new"
@@ -125,7 +113,7 @@ export default function VideoUploader({
     }, intervalMs);
   }
 
-  // Remove or cancel
+
   const handleRemove = () => {
     setSelectedVideo(null);
     setFileName("");
@@ -134,7 +122,7 @@ export default function VideoUploader({
     setStatus("idle");
   };
 
-  // If we want to handle error states
+
   const handleRetry = () => {
     if (selectedVideo) {
       handleSelectedFile(selectedVideo);
@@ -157,7 +145,7 @@ export default function VideoUploader({
         />
 
         {!selectedVideo ? (
-          // No file selected
+
           <div className="flex flex-col gap-3 justify-center items-center w-fit">
             <Upload className="mx-auto size-20 text-black" />
             <h2 className="text-xl font-bold text-center text-black">
@@ -177,7 +165,7 @@ export default function VideoUploader({
             </button>
           </div>
         ) : (
-          // A file is selected
+
           <div className="flex flex-col gap-3 justify-center items-center w-full">
             <div className="w-full max-w-[400px] bg-white p-3 rounded-lg border border-[#DDDDDD] space-y-2 relative">
               {/* File name + size + remove button */}
@@ -199,7 +187,7 @@ export default function VideoUploader({
                   {/* Purple bar + percentage */}
                   <div className="w-full bg-[#F1F1F1] h-2 rounded-full relative mt-2 overflow-hidden">
                     <div
-                      // The transition-all + linear helps the bar move smoothly
+
                       className="bg-[#B14AE2] h-2 rounded-full transition-all duration-100 linear"
                       style={{ width: `${progress}%` }}
                     />
