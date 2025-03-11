@@ -75,6 +75,14 @@ export default function VideoPlayer({
         return parts[0] * 3600 + parts[1] * 60 + parts[2] + parts[3] / 1000;
     };
 
+    // Utility to format seconds -> mm:ss
+    function formatTime(seconds: number): string {
+        if (!Number.isFinite(seconds)) return "00:00";
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${s.toString().padStart(2, "0")}`;
+    }
+
     useEffect(() => {
         function handleFSchange() {
             setIsFullScreen(!!document.fullscreenElement);
@@ -309,13 +317,13 @@ export default function VideoPlayer({
     };
 
     const handleProgressHover = (e: React.MouseEvent<HTMLDivElement>) => {
-        if (!progressBarRef.current || !duration) return;
+        if (!progressBarRef.current || !duration || isLandscape === null) return;
         const rect = progressBarRef.current.getBoundingClientRect();
         const offsetX = e.clientX - rect.left;
         const hoverPercentage = offsetX / rect.width;
         const newHoverTime = hoverPercentage * duration;
 
-        const thumbnailWidth = 90;
+        const thumbnailWidth = isLandscape ? 160 : 90;
         const clampedPosition = Math.max(
             thumbnailWidth / 2,
             Math.min(offsetX, rect.width - thumbnailWidth / 2)
@@ -380,10 +388,10 @@ export default function VideoPlayer({
 
     const getVideoContainerStyle = () => {
         return isLandscape === null
-            ? { width: "388px", height: "630px" }
+            ? { width: "400px", height: "630px" }
             : isLandscape
                 ? { width: "830px", height: "500px" }
-                : { width: "388px", height: "630px" };
+                : { width: "400px", height: "630px" };
     };
 
     return (
@@ -459,7 +467,7 @@ export default function VideoPlayer({
             )}
 
             <div
-                className="absolute bottom-0 left-0 w-full h-32 z-10 px-4 py-3 flex flex-col space-y-2 rounded-b-xl justify-end items-start"
+                className="absolute bottom-0 left-0 w-full h-32 z-10 px-4 py-3 flex flex-col space-y-2 rounded-b-xl justify-end items-start gap-2"
                 style={{ background: "linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.8) 100%)" }}
             >
                 <div className="flex items-center space-x-2">
@@ -479,11 +487,17 @@ export default function VideoPlayer({
                         <span className="text-white font-medium text-xs">{video.createdAt}</span>
                     </div>
                 </div>
+
                 {currentCaption && (
                     <p className="bg-purple-600 bg-opacity-75 text-white px-3 py-1 rounded-md text-left">
                         {currentCaption}
                     </p>
                 )}
+
+                <p className="text-white font-normal text-xs">
+                    <b>{formatTime(currentTime)}</b> / {formatTime(duration)}
+                </p>
+
                 <div
                     ref={progressBarRef}
                     className="relative w-full"
@@ -496,9 +510,18 @@ export default function VideoPlayer({
                     onMouseMove={handleProgressHover}
                 >
                     <div
-                        className="absolute bottom-8 z-20 bg-cover bg-center rounded-md shadow-lg border-2 border-[#B14AE2]"
+                        className="absolute bottom-8 z-20 bg-cover bg-center rounded-lg shadow-lg border border-white"
                         style={getThumbnailStyle()}
-                    />
+                    >
+                        {
+                            hoverTime && (
+                            <div className="text-xs bg-black/30 text-white py-1 px-2 m-1 absolute bottom-[1px] right-[1px] rounded-md font-bold">
+                                {formatTime(hoverTime)}
+                            </div>
+                        )}
+                    </div>
+
+
                     <div
                         className={`absolute bottom-0 left-0 w-full ${isHovered ? "h-[5px] rounded-lg" : "h-[2px]"} bg-gray-500 opacity-70`}
                         style={{ background: `linear-gradient(to right, #BE41D2 ${((currentTime / duration) * 100) || 0}%, #999 ${((currentTime / duration) * 100) || 0}%)` }}
@@ -517,7 +540,7 @@ export default function VideoPlayer({
             </div>
 
             {isBuffering && (
-                <div className="flex flex-col justify-center items-center z-20 bg-black bg-opacity-30 rounded-xl absolute bottom-0 h-full w-full">
+                <div className="flex flex-col justify-center items-center z-10 bg-black bg-opacity-30 rounded-xl absolute bottom-0 h-full w-full">
                     <span className="icon-[mingcute--loading-fill] animate-spin text-white size-14"></span>
                 </div>
             )}

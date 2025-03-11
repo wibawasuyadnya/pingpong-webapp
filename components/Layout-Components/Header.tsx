@@ -1,162 +1,114 @@
-import React from "react";
+"use client";
 import Image from "next/image";
+import fetcher from "@/lib/fetchJson";
+import { SessionData } from "@/types/type";
+import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
+import React, { Fragment, useState, MouseEvent } from "react";
 
-export default function Header({ type }: { type?: string }) {
+export default function Header({ type, session }: { type?: string, session?: SessionData }) {
+    const router = useRouter();
+    const [open, setOpen] = useState<boolean>(false);
+
+    const handleLogout = async () => {
+        setOpen(false);
+        try {
+            await fetcher("/api/auth/logout", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+            });
+            router.refresh();
+        } catch (error) {
+            console.error("Logout failed:", (error as Error).message);
+        }
+    };
+
+    function handleModalClick(e: MouseEvent<HTMLDivElement>) {
+        e.stopPropagation();
+    }
+
     return (
-        <nav className="navbar bg-transparent w-full">
-            <div className="flex flex-1 items-center">
-                <Image
-                    src="/assets/pingpong-logo.webp"
-                    alt="Background"
-                    width={150}
-                    height={70}
-                    quality={100}
-                    className="object-cover z-[-1]"
-                />
-            </div>
-            {
-                type !== "login" && (
-                    <div className="navbar-end flex items-center gap-4">
-                        <div className="dropdown relative inline-flex [--auto-close:inside] [--offset:8] [--placement:bottom-end]">
-                            <button id="dropdown-scrollable" type="button" className="dropdown-toggle btn btn-text btn-circle dropdown-open:bg-base-content/10 size-10" aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                <div className="indicator">
-                                    <span className="indicator-item bg-error size-2 rounded-full"></span>
-                                    <span className="icon-[tabler--bell] text-base-content size-[1.375rem]"></span>
+        <Fragment>
+            <nav className="navbar bg-transparent w-full">
+                <div className="flex flex-1 items-center">
+                    <Image
+                        src="/assets/pingpong-logo.webp"
+                        alt="Background"
+                        width={150}
+                        height={70}
+                        quality={100}
+                        className="object-cover z-[-1]"
+                    />
+                </div>
+                {
+                    type !== "login" && (
+                        <div className="navbar-end flex items-center gap-5">
+                            <div className="avatar">
+                                <div className="size-9.5 rounded-full">
+                                    <img src="https://cdn.flyonui.com/fy-assets/avatar/avatar-1.png" alt="avatar 1" />
                                 </div>
-                            </button>
-                            <div className="dropdown-menu dropdown-open:opacity-100 hidden" role="menu" aria-orientation="vertical" aria-labelledby="dropdown-scrollable">
-                                <div className="dropdown-header justify-center">
-                                    <h6 className="text-base-content text-base">Notifications</h6>
-                                </div>
-                                <div className="vertical-scrollbar horizontal-scrollbar rounded-scrollbar text-base-content/80 max-h-56 overflow-auto max-md:max-w-60">
-                                    <div className="dropdown-item">
-                                        <div className="avatar away-bottom">
-                                            <div className="w-10 rounded-full">
-                                                <img src="https://cdn.flyonui.com/fy-assets/avatar/avatar-1.png" alt="avatar 1" />
-                                            </div>
-                                        </div>
-                                        <div className="w-60">
-                                            <h6 className="truncate text-base">Charles Franklin</h6>
-                                            <small className="text-base-content/50 truncate">Accepted your connection</small>
-                                        </div>
-                                    </div>
-                                    <div className="dropdown-item">
-                                        <div className="avatar">
-                                            <div className="w-10 rounded-full">
-                                                <img src="https://cdn.flyonui.com/fy-assets/avatar/avatar-2.png" alt="avatar 2" />
-                                            </div>
-                                        </div>
-                                        <div className="w-60">
-                                            <h6 className="truncate text-base">Martian added moved Charts & Maps task to the done board.</h6>
-                                            <small className="text-base-content/50 truncate">Today 10:00 AM</small>
-                                        </div>
-                                    </div>
-                                    <div className="dropdown-item">
-                                        <div className="avatar online-bottom">
-                                            <div className="w-10 rounded-full">
-                                                <img src="https://cdn.flyonui.com/fy-assets/avatar/avatar-8.png" alt="avatar 8" />
-                                            </div>
-                                        </div>
-                                        <div className="w-60">
-                                            <h6 className="truncate text-base">New Message</h6>
-                                            <small className="text-base-content/50 truncate">You have new message from Natalie</small>
-                                        </div>
-                                    </div>
-                                    <div className="dropdown-item">
-                                        <div className="avatar placeholder">
-                                            <div className="bg-neutral text-neutral-content w-10 rounded-full p-2">
-                                                <span className="icon-[tabler--user] size-full"></span>
-                                            </div>
-                                        </div>
-                                        <div className="w-60">
-                                            <h6 className="truncate text-base">Application has been approved 🚀</h6>
-                                            <small className="text-base-content/50 text-wrap">Your ABC project application has been approved.</small>
-                                        </div>
-                                    </div>
-                                    <div className="dropdown-item">
-                                        <div className="avatar">
-                                            <div className="w-10 rounded-full">
-                                                <img src="https://cdn.flyonui.com/fy-assets/avatar/avatar-10.png" alt="avatar 10" />
-                                            </div>
-                                        </div>
-                                        <div className="w-60">
-                                            <h6 className="truncate text-base">New message from Jane</h6>
-                                            <small className="text-base-content/50 text-wrap">Your have new message from Jane</small>
-                                        </div>
-                                    </div>
-                                    <div className="dropdown-item">
-                                        <div className="avatar">
-                                            <div className="w-10 rounded-full">
-                                                <img src="https://cdn.flyonui.com/fy-assets/avatar/avatar-3.png" alt="avatar 3" />
-                                            </div>
-                                        </div>
-                                        <div className="w-60">
-                                            <h6 className="truncate text-base">Barry Commented on App review task.</h6>
-                                            <small className="text-base-content/50 truncate">Today 8:32 AM</small>
-                                        </div>
-                                    </div>
-                                </div>
-                                <a href="#" className="dropdown-footer justify-center gap-1">
-                                    <span className="icon-[tabler--eye] size-4"></span>
-                                    View all
-                                </a>
                             </div>
-                        </div>
-                        <div className="dropdown relative inline-flex [--auto-close:inside] [--offset:8] [--placement:bottom-end]">
-                            <button id="dropdown-scrollable" type="button" className="dropdown-toggle flex items-center" aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
-                                <div className="avatar">
-                                    <div className="size-9.5 rounded-full">
-                                        <img src="https://cdn.flyonui.com/fy-assets/avatar/avatar-1.png" alt="avatar 1" />
-                                    </div>
-                                </div>
+
+                            <button
+                                onClick={() => setOpen(true)}
+                                className="bg-[#AF52DE] py-2 px-5 rounded-lg text-white text-sm font-normal">
+                                Log Out
                             </button>
-                            <ul className="dropdown-menu dropdown-open:opacity-100 hidden min-w-60" role="menu" aria-orientation="vertical" aria-labelledby="dropdown-avatar">
-                                <li className="dropdown-header gap-2">
-                                    <div className="avatar">
-                                        <div className="w-10 rounded-full">
-                                            <img src="https://cdn.flyonui.com/fy-assets/avatar/avatar-1.png" alt="avatar" />
+                        </div>
+                    )
+                }
+            </nav>
+            {
+                open && (
+                    <div
+                        className="fixed inset-0 z-100 flex items-center justify-end bg-black bg-opacity-50 w-full"
+                        role="dialog">
+                        <AnimatePresence>
+                            <motion.div
+                                className="flex items-center justify-end bg-black bg-opacity-50 w-full"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setOpen(false)}
+                            >
+                                <motion.div
+                                    className="fixed flex items-center justify-center right-0"
+                                    style={{ width: "calc(100% - 203.6px)" }}
+                                    initial={{ scale: 0.9, y: 20, opacity: 0 }}
+                                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                                    exit={{ scale: 0.9, y: 20, opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                >
+                                    <div className="bg-white rounded-lg w-[350px] min-h-[250px] flex flex-col items-center justify-center"
+                                        onClick={handleModalClick}>
+                                        <div className="font-bold text-xl space-y-2 p-4">
+                                            <p className="text-center">
+                                                Oh no you're leaving,<br />
+                                                you sure you want to Log out?
+                                            </p>
+                                        </div>
+                                        <div className="flex flex-col gap-2 items-center justify-center w-full py-3 px-11">
+                                            <button
+                                                onClick={handleLogout}
+                                                type="button"
+                                                className="text-white w-full px-5 py-3 rounded-xl"
+                                                style={{
+                                                    background: 'linear-gradient(180deg, #D241AA 0%, #C42BDD 100%)'
+                                                }}>Log out</button>
+                                            <button
+                                                onClick={() => setOpen(false)}
+                                                type="button"
+                                                className="text-black w-full px-5 py-3 rounded-xl" >
+                                                No
+                                            </button>
                                         </div>
                                     </div>
-                                    <div>
-                                        <h6 className="text-base-content text-base font-semibold">John Doe</h6>
-                                        <small className="text-base-content/50">Admin</small>
-                                    </div>
-                                </li>
-                                <li>
-                                    <a className="dropdown-item" href="#">
-                                        <span className="icon-[tabler--user]"></span>
-                                        My Profile
-                                    </a>
-                                </li>
-                                <li>
-                                    <a className="dropdown-item" href="#">
-                                        <span className="icon-[tabler--settings]"></span>
-                                        Settings
-                                    </a>
-                                </li>
-                                <li>
-                                    <a className="dropdown-item" href="#">
-                                        <span className="icon-[tabler--receipt-rupee]"></span>
-                                        Billing
-                                    </a>
-                                </li>
-                                <li>
-                                    <a className="dropdown-item" href="#">
-                                        <span className="icon-[tabler--help-triangle]"></span>
-                                        FAQs
-                                    </a>
-                                </li>
-                                <li className="dropdown-footer gap-2">
-                                    <a className="btn btn-error btn-soft btn-block" href="#">
-                                        <span className="icon-[tabler--logout]"></span>
-                                        Sign out
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
+                                </motion.div>
+                            </motion.div>
+                        </AnimatePresence>
                     </div>
                 )
             }
-        </nav>
+        </Fragment>
     )
 }

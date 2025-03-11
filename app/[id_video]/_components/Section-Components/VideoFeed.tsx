@@ -239,7 +239,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
             <Fragment>
                 <div
                     ref={containerRef}
-                    className="h-[700px] overflow-y-scroll snap-y snap-mandatory no-scrollbar relative"
+                    className="h-[650px] overflow-y-scroll snap-y snap-mandatory no-scrollbar relative"
                     style={{ overscrollBehavior: "contain" }}
                 >
                     <div
@@ -270,7 +270,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                         return (
                             <div
                                 key={`${video.id}-${index}`}
-                                className={`relative min-h-[650px] w-full flex items-center justify-center snap-start ${index > 0 ? "mt-[50px]" : ""}`}
+                                className={`relative min-h-[650px] w-full flex items-center justify-center snap-start`}
                                 style={{ scrollSnapStop: "always" }}
                             >
                                 <div className={`relative ${containerPaddingClass}`}>
@@ -307,7 +307,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                 />
                 {activeIndex !== null && uniqueVideos[activeIndex] && (
                     <div
-                        className="fixed bottom-[13px] right-0 z-20 flex flex-row items-end justify-center"
+                        className="fixed bottom-[15px] right-0 z-20 flex flex-row items-end justify-center"
                         style={{ width: "calc(100% - 203.6px)" }}
                     >
                         <UploadButton activeId={uniqueVideos[activeIndex].id} />
