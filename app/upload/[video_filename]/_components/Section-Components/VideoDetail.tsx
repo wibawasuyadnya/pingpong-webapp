@@ -126,14 +126,20 @@ export default function VideoDetailPreview({
     async function fetchThread({ post }: { post: string }) {
         setLoading(true);
         const headers = await getHeader({ user: session.user });
+        const params = {
+            limit: 1
+        }
         try {
             const res = await api<ApiResponse>({
                 endpoint: `api/thread/${post}`,
                 method: "GET",
-                options: { headers },
+                options: {
+                    headers,
+                    params
+                },
             });
             setLoading(false);
-            setThreadName(res.data[0].thread_name || "");
+            setThreadName(res.data[0].thread_name);
         } catch (err) {
             setLoading(false);
             console.error("Error fetching thread:", err);
@@ -158,7 +164,7 @@ export default function VideoDetailPreview({
 
             const blob = base64ToBlob(video_preview, "video/mp4");
             const keyFormData = new FormData();
-            keyFormData.append("file_name", `${video_filename}.mp4`);
+            keyFormData.append("file_name", `${video_filename}`);
 
             const keyRes = await fetch(`${apiUrl}/api/video/s3-object-key`, {
                 method: "POST",
@@ -191,9 +197,14 @@ export default function VideoDetailPreview({
                 setIsUploading(false);
                 return;
             }
+
             const metadataFormData = new FormData();
+
+            if (post && post !== "new") {
+                metadataFormData.append("parent_id", post);
+            }
             metadataFormData.append("video", `${video_filename}.mp4`);
-            metadataFormData.append("thread_name", threadName || "My First Video PWA");
+            metadataFormData.append("thread_name", threadName);
             selectedContacts.forEach((contact) => metadataFormData.append("cc_users[]", contact.email));
 
             const metadataRes = await fetch(`${apiUrl}/api/video`, {

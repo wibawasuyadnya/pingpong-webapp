@@ -388,10 +388,22 @@ export default function VideoPlayer({
 
     const getVideoContainerStyle = () => {
         return isLandscape === null
-            ? { width: "400px", height: "630px" }
+            ? { 
+                width: "385px", 
+                height: "600px",
+                margin: ""
+            }
             : isLandscape
-                ? { width: "830px", height: "500px" }
-                : { width: "400px", height: "630px" };
+                ? { 
+                    width: "830px", 
+                    height: "500px",
+                    margin: "50px 0px"
+                }
+                : { 
+                    width: "385px", 
+                    height: "600px",
+                    margin: ""
+                };
     };
 
     return (
@@ -407,7 +419,7 @@ export default function VideoPlayer({
                 preload="none"
                 crossOrigin="anonymous"
                 controlsList="nodownload"
-                className="object-cover w-full h-full rounded-xl cursor-pointer absolute bottom-0"
+                className="object-cover w-full h-full rounded-xl cursor-pointer"
             />
             <video
                 ref={thumbnailVideoRef}
@@ -418,7 +430,7 @@ export default function VideoPlayer({
                 className="hidden"
             />
             <motion.div
-                className="absolute top-2 left-2 z-10 flex items-center p-2 rounded-full bg-black bg-opacity-50 cursor-pointer"
+                className="absolute top-2 left-2 z-10 flex items-center p-2 rounded-full bg-black bg-opacity-50"
                 onHoverStart={() => setIsVolumeHovered(true)}
                 onHoverEnd={() => setIsVolumeHovered(false)}
                 animate={{
@@ -428,7 +440,7 @@ export default function VideoPlayer({
                 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
             >
-                <div className="flex-shrink-0" onClick={handleVolumeIconClick}>
+                <div className="flex-shrink-0 cursor-pointer" onClick={handleVolumeIconClick}>
                     {volumeIcon}
                 </div>
                 <motion.div
@@ -438,7 +450,7 @@ export default function VideoPlayer({
                     className="relative origin-left w-full h-[10px] flex items-center ml-2"
                 >
                     <div
-                        className="absolute bottom-1 left-0 w-full h-[4px] bg-gray-500 opacity-70 rounded-xl"
+                        className="absolute bottom-1 left-0 w-full h-[4px] bg-gray-500 opacity-70 rounded-xl cursor-grab"
                         style={{ background: `linear-gradient(to right, #FFF ${globalVolume * 100}%, #999 ${globalVolume * 100}%)` }}
                     />
                     <input
@@ -448,8 +460,8 @@ export default function VideoPlayer({
                         step="0.01"
                         value={globalVolume}
                         onChange={handleVolumeChange}
-                        className="absolute w-full bottom-1 h-[4px] opacity-100 transition-opacity duration-300"
-                        style={{ appearance: "none", background: "transparent", cursor: "pointer" }}
+                        className="absolute w-full bottom-1 h-[4px] opacity-100 transition-opacity duration-300 cursor-grab active:cursor-grabbing"
+                        style={{ appearance: "none", background: "transparent"}}
                     />
                 </motion.div>
             </motion.div>
@@ -567,14 +579,12 @@ export default function VideoPlayer({
                     height: 10px;
                     background: #ffffff;
                     border-radius: 50%;
-                    cursor: pointer;
                 }
                 input[type="range"]:not(.vid-progress)::-moz-range-thumb {
                     width: 10px;
                     height: 10px;
                     background: #ffffff;
                     border-radius: 50%;
-                    cursor: pointer;
                 }
                 input.vid-progress::-webkit-slider-thumb {
                     -webkit-appearance: none;
@@ -583,14 +593,12 @@ export default function VideoPlayer({
                     height: 12px;
                     background: #be41d2;
                     border-radius: 50%;
-                    cursor: pointer;
                 }
                 input.vid-progress::-moz-range-thumb {
                     width: 12px;
                     height: 12px;
                     background: #be41d2;
                     border-radius: 50%;
-                    cursor: pointer;
                 }
             `}</style>
         </div>

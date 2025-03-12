@@ -230,38 +230,33 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
         return (
             <Fragment>
                 <div
+                    className={`absolute ${isLandscape === null ? "top-[-20px]" : isLandscape ? "top-1" : "top-[-20px]"} right-[-4px] z-20 flex flex-row items-end justify-center`}
+                    style={{ width: "calc(100% - 205px)" }}
+                >
+                    <div
+                        className={`backdrop-blur-md bg-black/10 rounded-[5px] flex flex-row justify-between items-center px-3 ${isLandscape === null ? "w-[390px]" : isLandscape ? "w-[830px]" : "w-[390px]"}`}
+                    >
+                        <div className="flex flex-row justify-start items-center gap-4">
+                            <h1 className="font-bold text-base text-white">
+                                {activeIndex !== null && uniqueVideos[activeIndex]
+                                    ? trimThreadName(uniqueVideos[activeIndex].thread_name)
+                                    : "Loading..."}
+                            </h1>
+                        </div>
+                    </div>
+                </div>
+                <div
                     ref={containerRef}
                     className="h-[650px] overflow-y-scroll snap-y snap-mandatory no-scrollbar relative"
                     style={{ overscrollBehavior: "contain" }}
                 >
-                    <div
-                        className={`fixed ${isLandscape === null ? "top-10" : isLandscape ? "top-25" : "top-10"} right-0 z-20 flex flex-row items-end justify-center`}
-                        style={{ width: "calc(100% - 203.6px)" }}
-                    >
-                        <div
-                            className={`flex flex-row justify-between items-center px-3 ${isLandscape === null ? "w-[400px]" : isLandscape ? "w-[830px]" : "w-[400px]"}`}
-                        >
-                            <div className="flex flex-row justify-start items-center gap-4">
-                                <h1 className="font-bold text-base text-white">
-                                    {activeIndex !== null && uniqueVideos[activeIndex]
-                                        ? trimThreadName(uniqueVideos[activeIndex].thread_name)
-                                        : "Loading..."}
-                                </h1>
-                                <ChevronRight size={24} className="text-white" />
-                            </div>
-                            <div className="flex flex-row justify-start items-center gap-4">
-                                <h2 className="font-bold text-base text-white">Thread</h2>
-                            </div>
-                        </div>
-                    </div>
-
                     {uniqueVideos.map((video, index) => {
-                        const containerPaddingClass = "p-4";
-                        const controlsBottomClass = "bottom-5 -right-10";
+                        const containerPaddingClass = "pt-5 px-5";
+                        const controlsBottomClass = `-right-10 ${isLandscape === null ? "bottom-0" : isLandscape ? "bottom-12" : "bottom-0"}`;
                         return (
                             <div
                                 key={`${video.id}-${index}`}
-                                className={`relative min-h-[650px] w-full flex items-center justify-center snap-start`}
+                                className={`relative min-h-[600px] w-full flex items-center justify-center snap-start`}
                                 style={{ scrollSnapStop: "always" }}
                             >
                                 <div className={`relative ${containerPaddingClass}`}>
@@ -299,7 +294,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                 {activeIndex !== null && uniqueVideos[activeIndex] && (
                     <div
                         className="fixed bottom-[15px] right-0 z-20 flex flex-row items-end justify-center"
-                        style={{ width: "calc(100% - 203.6px)" }}
+                        style={{ width: "calc(100% - 205px)" }}
                     >
                         <UploadButton activeId={uniqueVideos[activeIndex].id} />
                     </div>

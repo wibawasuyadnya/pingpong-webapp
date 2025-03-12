@@ -45,7 +45,7 @@ export default function UploadButton({ activeId }: { activeId: string }) {
                     >
                         <Link href="/upload">
                             <button className="w-fit h-12 bg-purple-600 px-2 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-purple-700 transition-colors">
-                                <span className="icon-[material-symbols--add] size-7" />
+                                <span className="icon-[material-symbols--add] size-5" />
                                 <p className='font-bold text-white px-5'>New</p>
                             </button>
                         </Link>
