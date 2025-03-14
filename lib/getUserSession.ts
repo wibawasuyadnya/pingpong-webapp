@@ -8,11 +8,13 @@ async function getSessionUser() {
   if (session.isLoggedIn && session.user) {
     return {
       isLoggedIn: true,
-      user: await encrypt(JSON.stringify(session.user)), 
+      picture: session.picture,
+      user: await encrypt(JSON.stringify(session.user)),
     };
   }
   return {
     isLoggedIn: false,
+    picture: '',
     user: null,
   };
 }

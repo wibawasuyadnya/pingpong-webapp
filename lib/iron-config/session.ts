@@ -7,6 +7,7 @@ import { getIronSession, IronSession, IronSessionData } from "iron-session";
 declare module "iron-session" {
   interface IronSessionData {
     user?: User;
+    picture?: string;
     isLoggedIn?: boolean;
   }
 }
@@ -16,21 +17,21 @@ export const getSession = async (
   req: Request | IncomingMessage,
   res: Response
 ): Promise<IronSession<IronSessionData>> => {
-  const ironOptions = await getIronOptions();  
+  const ironOptions = await getIronOptions();
   const session = await getIronSession<IronSessionData>(
     req,
     res,
-    ironOptions 
+    ironOptions
   );
   return session;
 };
 
 // Helper function to retrieve session server side
 export const getServerActionSession = async () => {
-  const ironOptions = await getIronOptions();  
+  const ironOptions = await getIronOptions();
   const session = await getIronSession<IronSessionData>(
-    await cookies(),  
-    ironOptions  
+    await cookies(),
+    ironOptions
   );
   return session;
 };
@@ -41,11 +42,11 @@ export const setSession = async (
   res: Response,
   sessionData: Partial<IronSessionData>
 ): Promise<void> => {
-  const ironOptions = await getIronOptions(); 
+  const ironOptions = await getIronOptions();
   const session = await getIronSession<IronSessionData>(
     req,
     res,
-    ironOptions  
+    ironOptions
   );
 
   Object.assign(session, sessionData);
@@ -59,21 +60,21 @@ export const destroySession = async (
   request: Request,
   response: Response
 ): Promise<void> => {
-  const ironOptions = await getIronOptions(); 
+  const ironOptions = await getIronOptions();
   const session = await getIronSession<IronSessionData>(
     request,
     response,
-    ironOptions  
+    ironOptions
   );
   session.destroy();
 };
 
 // Helper function to delete session server side
 export const deleteServerActionSession = async () => {
-  const ironOptions = await getIronOptions();  
+  const ironOptions = await getIronOptions();
   const session = await getIronSession<IronSessionData>(
     await cookies(),
-    ironOptions  
+    ironOptions
   );
   session.destroy();
 };

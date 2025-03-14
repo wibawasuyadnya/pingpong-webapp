@@ -1,8 +1,7 @@
-// app/upload/[video_filename]/_components/Section-Components/VideoDetail-Components/AddContactModal.tsx
 "use client";
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { X } from "lucide-react";
+import { EllipsisVertical, X } from "lucide-react";
 import { TickCircle } from "iconsax-react";
 import getHeader from "@/lib/getHeader";
 import { SessionData } from "@/types/type";
@@ -19,6 +18,7 @@ interface AddContactModalProps {
     onClose: () => void;
     session: SessionData;
     onSave: (selectedContacts: Contact[]) => void;
+    initialSelectedContacts?: Contact[];
 }
 
 interface UserTag {
@@ -34,9 +34,15 @@ type ApiResponse = {
     data: UserTag[];
 };
 
-export default function AddContactModal({ postId, onClose, session, onSave }: AddContactModalProps) {
+export default function AddContactModal({
+    postId,
+    onClose,
+    session,
+    onSave,
+    initialSelectedContacts = [],
+}: AddContactModalProps) {
     const [users, setUsers] = useState<UserTag[]>([]);
-    const [selectedUsers, setSelectedUsers] = useState<Contact[]>([]);
+    const [selectedUsers, setSelectedUsers] = useState<Contact[]>(initialSelectedContacts);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -56,9 +62,7 @@ export default function AddContactModal({ postId, onClose, session, onSave }: Ad
                 const res = await api<ApiResponse>({
                     endpoint: `api/contact`,
                     method: "GET",
-                    options: {
-                        headers: headers,
-                    },
+                    options: { headers },
                 });
                 if (!res) {
                     throw new Error("Failed to fetch user tags");
@@ -76,11 +80,13 @@ export default function AddContactModal({ postId, onClose, session, onSave }: Ad
 
     const handleUserSelect = (user: UserTag) => {
         const contact = { name: user.name, email: user.email };
-        setSelectedUsers((prev) =>
-            prev.some((c) => c.email === user.email)
-                ? prev.filter((c) => c.email !== user.email)
-                : [...prev, contact]
-        );
+        setSelectedUsers((prev) => {
+            // Only append if not already selected; do not remove an existing one.
+            if (!prev.some((c) => c.email === user.email)) {
+                return [...prev, contact];
+            }
+            return prev;
+        });
     };
 
     const handleSave = () => {
@@ -101,11 +107,13 @@ export default function AddContactModal({ postId, onClose, session, onSave }: Ad
                 initial="hidden"
                 animate="visible"
                 exit="exit"
-                className="bg-white rounded-lg py-2 w-full max-w-md h-fit max-h-[600px] flex flex-col"
+                className="bg-white rounded-lg py-2 w-full max-w-sm h-fit max-h-[600px] flex flex-col"
             >
                 <div className="flex justify-between items-center mb-2 pt-3 px-3">
-                    <h2 className="text-lg font-bold text-black">Add Contact</h2>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+                    <div className="w-full">
+                        <h2 className="text-lg font-bold text-black text-center">Contact</h2>
+                    </div>
+                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700 w-fit">
                         <X size={24} />
                     </button>
                 </div>
@@ -113,7 +121,9 @@ export default function AddContactModal({ postId, onClose, session, onSave }: Ad
                 <div className="divider p-0 m-0"></div>
 
                 {loading ? (
-                    <p className="px-3">Loading contacts...</p>
+                    <div className="w-full h-52 flex justify-center items-center">
+                        <span className="loading loading-spinner loading-lg text-[#B14AE2]"></span>
+                    </div>
                 ) : error ? (
                     <p className="text-red-500">{error}</p>
                 ) : (
@@ -138,9 +148,12 @@ export default function AddContactModal({ postId, onClose, session, onSave }: Ad
                                         <span className="text-xs">{user.email}</span>
                                     </div>
 
-                                    {isSelected && (
+                                    {isSelected ? (
                                         <TickCircle size={20} color="#B14AE2" variant="Bold" className="ml-2" />
+                                    ) : (
+                                        <EllipsisVertical size={20} className="text-[#858585]" />
                                     )}
+
                                 </div>
                             );
                         })}

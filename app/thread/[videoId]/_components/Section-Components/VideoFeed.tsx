@@ -230,11 +230,11 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
         return (
             <Fragment>
                 <div
-                    className={`absolute ${isLandscape === null ? "top-[-20px]" : isLandscape ? "top-1" : "top-[-20px]"} right-[-4px] z-20 flex flex-row items-end justify-center`}
+                    className={`absolute ${isLandscape === null ? "top-[-20px]" : isLandscape ? "top-5" : "top-[-20px]"} right-[-4px] z-20 flex flex-row items-end justify-center`}
                     style={{ width: "calc(100% - 205px)" }}
                 >
                     <div
-                        className={`backdrop-blur-md bg-black/10 rounded-[5px] flex flex-row justify-between items-center px-3 ${isLandscape === null ? "w-[390px]" : isLandscape ? "w-[830px]" : "w-[390px]"}`}
+                        className={`backdrop-blur-md bg-black/10 rounded-[5px] flex flex-row justify-between items-center px-3 ${isLandscape === null ? "w-[390px]" : isLandscape ? "w-[830px] py-4" : "w-[390px]"}`}
                     >
                         <div className="flex flex-row justify-start items-center gap-4">
                             <h1 className="font-bold text-base text-white">

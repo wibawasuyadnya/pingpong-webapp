@@ -1,11 +1,17 @@
-// app/[id_video]/_components/Section-Components/VideoFeed.tsx
 "use client";
 import { Video } from "@/types/type";
 import { ChevronRight } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useAppSelector } from "@/redux/hook";
 import VideoPlayer from "@/components/Layout-Components/VideoFeed-Components/VideoPlayer";
-import React, { useRef, useEffect, useMemo, useCallback, useState, Fragment } from "react";
+import React, {
+    useRef,
+    useEffect,
+    useMemo,
+    useCallback,
+    useState,
+    Fragment,
+} from "react";
 import UploadButton from "@/components/Layout-Components/VideoFeed-Components/UploadButton";
 import VideoSkeleton from "@/components/Layout-Components/VideoFeed-Components/VideoSkeleton";
 import SideControlBar from "@/components/Layout-Components/VideoFeed-Components/SideControlBar";
@@ -20,7 +26,13 @@ interface VideoFeedProps {
     isInitialLoading: boolean;
 }
 
-export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isInitialLoading }: VideoFeedProps) {
+export default function VideoFeed({
+    videos,
+    loadMore,
+    hasMore,
+    loadingMore,
+    isInitialLoading,
+}: VideoFeedProps) {
     const { videoId } = useParams();
     const currentVideoId =
         typeof videoId === "string"
@@ -33,11 +45,32 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
     const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const scrollPositionRef = useRef<number>(0);
+
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
     const [hasUserPlayedVideo, setHasUserPlayedVideo] = useState(false);
     const [initialActiveSet, setInitialActiveSet] = useState(false);
+
+    // ✨ NEW: We'll store the next path we want to push to history here,
+    // and then handle it in a side-effect to avoid router updates mid-render.
+    const [pendingPath, setPendingPath] = useState<string | null>(null);
+
+    // We watch for changes in `pendingPath` and call replaceState *after* render
+    useEffect(() => {
+        if (pendingPath !== null) {
+            window.history.replaceState(
+                window.history.state,
+                "",
+                `/${pendingPath}`
+            );
+            // Optionally reset pendingPath
+            // setPendingPath(null);
+        }
+    }, [pendingPath]);
+
+    // For orientation checks
     const orientationMap = useAppSelector((state) => state.orientation?.orientationMap) ?? {};
 
+    // Filter out duplicates if any
     const uniqueVideos = useMemo(() => {
         const seenIds = new Set();
         return videos.filter((video) => {
@@ -47,16 +80,21 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
         });
     }, [videos]);
 
-    const isTargetVideoLoaded = currentVideoId ? uniqueVideos.some((video) => video.id === currentVideoId) : true;
+    const isTargetVideoLoaded = currentVideoId
+        ? uniqueVideos.some((video) => video.id === currentVideoId)
+        : true;
 
+    // If the user navigates to /{someId} but we haven't loaded that video yet, load more
     useEffect(() => {
         if (currentVideoId && !isTargetVideoLoaded && hasMore && !loadingMore) {
             loadMore();
         }
     }, [currentVideoId, isTargetVideoLoaded, hasMore, loadingMore, loadMore]);
 
+    // Intersection Observer: preload videos when they come into view
     useEffect(() => {
         const options = { rootMargin: "0px", threshold: 0.5 };
+
         const handleIntersection = (entries: IntersectionObserverEntry[]) => {
             entries.forEach((entry) => {
                 const video = entry.target as HTMLVideoElement;
@@ -70,30 +108,42 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                 }
             });
         };
+
         const observer = new IntersectionObserver(handleIntersection, options);
         videoRefs.current.forEach((video) => video && observer.observe(video));
-        return () => videoRefs.current.forEach((video) => video && observer.unobserve(video));
+
+        return () => {
+            videoRefs.current.forEach((video) => video && observer.unobserve(video));
+        };
     }, [uniqueVideos]);
 
-    const playActiveVideo = useCallback((index: number) => {
-        const video = videoRefs.current[index];
-        if (!video) return;
+    // Helper to play the newly active video
+    const playActiveVideo = useCallback(
+        (index: number) => {
+            const video = videoRefs.current[index];
+            if (!video) return;
 
-        videoRefs.current.forEach((v, idx) => {
-            if (v && idx !== index && !v.paused) {
-                v.pause();
-            }
-        });
+            // Pause all other videos
+            videoRefs.current.forEach((v, idx) => {
+                if (v && idx !== index && !v.paused) {
+                    v.pause();
+                }
+            });
 
-        video.muted = false;
-        video.play()
-            .then(() => console.log(`Playing video at index ${index} with sound`))
-            .catch((err) => console.warn("Play interrupted:", err));
-    }, []);
+            video.muted = false;
+            video
+                .play()
+                .then(() => console.log(`Playing video at index ${index} with sound`))
+                .catch((err) => console.warn("Play interrupted:", err));
+        },
+        []
+    );
 
+    // Scroll handler to detect the "closest" video
     const handleScroll = useCallback(() => {
         const container = containerRef.current;
         if (!container) return;
+
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         scrollPositionRef.current = container.scrollTop;
 
@@ -121,28 +171,43 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                 setActiveIndex(closestIndex);
                 const activeVideo = videoRefs.current[closestIndex];
                 if (activeVideo) {
-                    videoRefs.current.forEach((video) => video?.classList.remove("active-video"));
+                    // Highlight the new active video
+                    videoRefs.current.forEach((v) => v?.classList.remove("active-video"));
                     activeVideo.classList.add("active-video");
+
                     if (hasUserPlayedVideo) {
                         playActiveVideo(closestIndex);
                     }
                 }
+
+                // ✨ Instead of calling replaceState directly, set a pending path
+                if (uniqueVideos[closestIndex]) {
+                    setPendingPath(uniqueVideos[closestIndex].id);
+                }
             }
 
-            if (uniqueVideos[closestIndex]) {
-                const newId = uniqueVideos[closestIndex].id;
-                window.history.replaceState(window.history.state, "", `/${newId}`);
-            }
-
+            // If near the bottom, load more
             if (hasMore) {
                 const threshold = 200;
-                if (container.scrollTop + container.clientHeight >= container.scrollHeight - threshold) {
+                if (
+                    container.scrollTop + container.clientHeight >=
+                    container.scrollHeight - threshold
+                ) {
                     loadMore();
                 }
             }
         }, 150);
-    }, [uniqueVideos, loadMore, hasMore, activeIndex, playActiveVideo, hasUserPlayedVideo]);
+    }, [
+        uniqueVideos,
+        loadMore,
+        hasMore,
+        activeIndex,
+        playActiveVideo,
+        hasUserPlayedVideo,
+        setPendingPath,
+    ]);
 
+    // Pause all videos when tab is hidden
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === "hidden") {
@@ -158,9 +223,12 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
             }
         };
         document.addEventListener("visibilitychange", handleVisibilityChange);
-        return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+        return () => {
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
+        };
     }, [activeIndex, playActiveVideo, hasUserPlayedVideo]);
 
+    // Attach our scroll listener
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
@@ -171,6 +239,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
         };
     }, [handleScroll]);
 
+    // Scroll to the currentVideoId if we have it
     useEffect(() => {
         if (!initialActiveSet && currentVideoId) {
             const activeIdx = uniqueVideos.findIndex((video) => video.id === currentVideoId);
@@ -182,6 +251,7 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
         }
     }, [currentVideoId, uniqueVideos, initialActiveSet]);
 
+    // Keep track of scroll position if videos array changes
     useEffect(() => {
         const container = containerRef.current;
         if (container && scrollPositionRef.current) {
@@ -189,43 +259,55 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
         }
     }, [uniqueVideos]);
 
+    // "Up" arrow button
     const handleUpClick = () => {
         if (activeIndex !== null && activeIndex > 0) {
             const newIndex = activeIndex - 1;
             const videoEl = videoRefs.current[newIndex];
             if (videoEl) {
                 videoEl.scrollIntoView({ behavior: "smooth" });
-                window.history.replaceState(window.history.state, "", `/${uniqueVideos[newIndex].id}`);
                 setActiveIndex(newIndex);
                 if (hasUserPlayedVideo) {
                     playActiveVideo(newIndex);
                 }
+                // ✨ Set pending path for the new video
+                setPendingPath(uniqueVideos[newIndex].id);
             }
         }
     };
 
+    // "Down" arrow button
     const handleDownClick = () => {
         if (activeIndex !== null && activeIndex < uniqueVideos.length - 1) {
             const newIndex = activeIndex + 1;
             const videoEl = videoRefs.current[newIndex];
             if (videoEl) {
                 videoEl.scrollIntoView({ behavior: "smooth" });
-                window.history.replaceState(window.history.state, "", `/${uniqueVideos[newIndex].id}`);
                 setActiveIndex(newIndex);
                 if (hasUserPlayedVideo) {
                     playActiveVideo(newIndex);
                 }
+                // ✨ Set pending path for the new video
+                setPendingPath(uniqueVideos[newIndex].id);
             }
         }
     };
 
+    // Utility to shorten thread name
     function trimThreadName(threadName: string, maxWords = 5): string {
         const words = threadName.split(/\s+/);
-        return words.length > maxWords ? words.slice(0, maxWords).join(" ") + "..." : threadName;
+        return words.length > maxWords
+            ? words.slice(0, maxWords).join(" ") + "..."
+            : threadName;
     }
 
+    // Render the main content
     const renderContent = () => {
-        if (isInitialLoading || (currentVideoId && !uniqueVideos.some((video) => video.id === currentVideoId))) {
+        // If we're still loading initial data or haven't loaded the target video yet
+        if (
+            isInitialLoading ||
+            (currentVideoId && !uniqueVideos.some((video) => video.id === currentVideoId))
+        ) {
             return (
                 <div className="w-full h-[700px] flex items-center justify-center">
                     <VideoSkeleton />
@@ -233,21 +315,34 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
             );
         }
 
+        // Determine orientation for the active video
         const activeVideoId = activeIndex !== null ? uniqueVideos[activeIndex]?.id : undefined;
         const isLandscape = activeVideoId ? orientationMap[activeVideoId] ?? null : null;
 
         return (
             <Fragment>
                 <div
-                    className={`absolute ${isLandscape === null ? "top-[-20px]" : isLandscape ? "top-1" : "top-[-20px]"} right-[-4px] z-20 flex flex-row items-end justify-center`}
+                    className={`absolute ${isLandscape === null ? "top-[-20px]" : isLandscape ? "top-1" : "top-[-20px]"
+                        } right-[-4px] z-20 flex flex-row items-end justify-center`}
                     style={{ width: "calc(100% - 205px)" }}
                 >
                     <div
-                        className={`flex flex-row justify-between items-center px-3 ${isLandscape === null ? "w-[400px]" : isLandscape ? "w-[830px]" : "w-[400px]"}`}
+                        className={`flex flex-row justify-between items-center px-3 ${isLandscape === null
+                                ? "w-[400px]"
+                                : isLandscape
+                                    ? "w-[830px]"
+                                    : "w-[400px]"
+                            }`}
                     >
                         <div className="flex flex-row justify-start items-center gap-4">
-                            <Link href={`/thread/${activeIndex !== null && uniqueVideos[activeIndex] && uniqueVideos[activeIndex].id}`}
-                                className="cursor-pointer">
+                            {/* This Link won't cause the error, because it only changes the route on user click */}
+                            <Link
+                                href={`/thread/${activeIndex !== null && uniqueVideos[activeIndex]
+                                        ? uniqueVideos[activeIndex].id
+                                        : ""
+                                    }`}
+                                className="cursor-pointer"
+                            >
                                 <h1 className="font-bold text-base text-white">
                                     {activeIndex !== null && uniqueVideos[activeIndex]
                                         ? trimThreadName(uniqueVideos[activeIndex].thread_name)
@@ -268,14 +363,14 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                     className="h-[650px] overflow-y-scroll snap-y snap-mandatory no-scrollbar relative"
                     style={{ overscrollBehavior: "contain" }}
                 >
-
                     {uniqueVideos.map((video, index) => {
                         const containerPaddingClass = `pt-5 px-5`;
-                        const controlsBottomClass = `-right-10 ${isLandscape === null ? "bottom-0" : isLandscape ? "bottom-12" : "bottom-0"}`;
+                        const controlsBottomClass = `-right-10 ${isLandscape === null ? "bottom-0" : isLandscape ? "bottom-12" : "bottom-0"
+                            }`;
                         return (
                             <div
                                 key={`${video.id}-${index}`}
-                                className={`relative min-h-[600px] w-full flex items-center justify-center snap-start`}
+                                className="relative min-h-[600px] w-full flex items-center justify-center snap-start"
                                 style={{ scrollSnapStop: "always" }}
                             >
                                 <div className={`relative ${containerPaddingClass}`}>
@@ -304,12 +399,14 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
                         </div>
                     )}
                 </div>
+
                 <NavigationArrows
                     onUpClick={handleUpClick}
                     onDownClick={handleDownClick}
                     totalVideos={uniqueVideos.length}
                     currentIndex={activeIndex}
                 />
+
                 {activeIndex !== null && uniqueVideos[activeIndex] && (
                     <div
                         className="fixed bottom-[15px] right-0 z-20 flex flex-row items-end justify-center"

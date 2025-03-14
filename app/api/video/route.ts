@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("video") as File | null;
-    const objectKey = formData.get("objectKey") as string | null; // Extract objectKey from formData
+    const objectKey = formData.get("objectKey") as string | null;
 
     if (!file) {
       return NextResponse.json({ error: "No video file provided" }, { status: 400 });

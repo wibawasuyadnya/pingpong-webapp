@@ -16,6 +16,7 @@ export type User = {
 
 export type SessionData = {
   user: User | string | null;
+  picture: string | undefined;
   isLoggedIn: boolean;
 };
 
@@ -50,6 +51,7 @@ export type LoginResponse = {
     email?: string;
     phone_number?: string;
     access_token?: string;
+    picture?: string;
   };
 };
 

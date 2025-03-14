@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useAppDispatch } from "@/redux/hook";
 import { setVideo } from "@/redux/slices/videoSlice";
 import { Upload, Video, FileVideo } from "lucide-react";
-import { FileX, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+import { Trash } from "iconsax-react";
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -68,6 +69,8 @@ export default function VideoUploader({
     setFileName(file.name);
     const sizeMB = file.size / (1024 * 1024);
     setFileSizeMB(sizeMB);
+
+    // Convert file to base64 and store in Redux
     const base64Video = await fileToBase64(file);
     dispatch(
       setVideo({
@@ -76,19 +79,27 @@ export default function VideoUploader({
         type: file.type,
       })
     );
-    const encodedName = encodeURIComponent(file.name);
-    
+
+    const originalName = file.name;
+    const ext = originalName.substring(originalName.lastIndexOf(".") + 1);
+    // ext = "mkv" (or "mp4", "mov", etc.)
+
+    const randomId = crypto.randomUUID();
+    const newFilename = `${randomId}.${ext}`;
+
+    // Start “uploading” progress simulation
     setProgress(0);
     setStatus("uploading");
-    
+
+    // Fake upload rate and progress
     const uploadRateMBps = 5;
     let totalTimeSec = sizeMB / uploadRateMBps;
     const intervalMs = 100;
     let intervalsCount = Math.ceil((totalTimeSec * 1000) / intervalMs);
     intervalsCount = Math.max(intervalsCount, 5);
     intervalsCount = Math.min(intervalsCount, 1000);
+
     let currentInterval = 0;
-    
     const timer = setInterval(() => {
       currentInterval++;
       const increment = 100 / intervalsCount;
@@ -102,16 +113,16 @@ export default function VideoUploader({
         setProgress(100);
         setStatus("success");
 
-
+        // Once “upload” completes, navigate to /upload/<random>.mp4?post=...
         setTimeout(() => {
           router.push(
-            `/upload/${encodedName}?post=${replyVideo !== undefined ? replyVideo : "new"
-            }`
+            `/upload/${newFilename}?post=${replyVideo !== undefined ? replyVideo : "new"}`
           );
         }, 800);
       }
     }, intervalMs);
   }
+
 
 
   const handleRemove = () => {
@@ -176,8 +187,9 @@ export default function VideoUploader({
                     {fileSizeMB.toFixed(2)} MB
                   </p>
                 </div>
+
                 <button onClick={handleRemove}>
-                  <FileX size={20} className="text-gray-600 hover:text-black" />
+                  <Trash size="20px" color="#353535" className="text-gray-600 hover:text-black" />
                 </button>
               </div>
 
@@ -187,7 +199,6 @@ export default function VideoUploader({
                   {/* Purple bar + percentage */}
                   <div className="w-full bg-[#F1F1F1] h-2 rounded-full relative mt-2 overflow-hidden">
                     <div
-
                       className="bg-[#B14AE2] h-2 rounded-full transition-all duration-100 linear"
                       style={{ width: `${progress}%` }}
                     />

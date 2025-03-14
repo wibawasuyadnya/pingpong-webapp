@@ -7,6 +7,7 @@ interface UseUserProps {
   redirectIfFound?: boolean;
   name?: string;
   email?: string;
+  picture?: string;
   phone_number?: string;
   access_token?: string;
 }
@@ -16,6 +17,7 @@ export async function useUser({
   redirectIfFound = false,
   name,
   phone_number,
+  picture,
   email,
   access_token,
 }: UseUserProps = {}) {
@@ -34,6 +36,7 @@ export async function useUser({
       email,
       phone_number,
       access_token,
+      picture
     }),
   });
 

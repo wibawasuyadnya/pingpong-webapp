@@ -16,7 +16,7 @@ export default async function VideoPost({
     const postType = (await searchParams)?.post;
     return (
         <div className="bg-[url('/assets/bg-pingpong.webp')] h-auto">
-            <Layout>
+            <Layout session={session}>
                 <Section videoFilename={video_filename} post={postType} session={session}/>
             </Layout>
         </div>

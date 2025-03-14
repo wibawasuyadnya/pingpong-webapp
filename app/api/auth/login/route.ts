@@ -3,7 +3,7 @@ import { setSession } from "@/lib/iron-config/session";
 
 const helper = async (request: Request) => {
   try {
-    const { name, email, phone_number, access_token } =
+    const { name, email, phone_number, access_token, picture } =
       await request.json();
 
 
@@ -16,6 +16,7 @@ const helper = async (request: Request) => {
         phone_number,
         access_token,
       },
+      picture: picture,
       isLoggedIn: true,
     });
 

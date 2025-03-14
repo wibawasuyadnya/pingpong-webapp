@@ -10,7 +10,7 @@ export default async function Thread() {
     const session: SessionData = await getSessionUser();
     return (
         <div className="bg-[url('/assets/bg-pingpong.webp')]">
-            <Layout>
+            <Layout session={session}>
                 <Section session={session} />
             </Layout>
         </div>

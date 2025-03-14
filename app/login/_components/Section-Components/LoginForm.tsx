@@ -62,13 +62,12 @@ export default function Section() {
                 },
             });
 
-            console.log(res);
-
             await useUser({
                 name: res.data.name,
                 email: res.data.email,
                 phone_number: res.data.phone_number,
                 access_token: res.data.access_token,
+                picture: res.data.picture
             });
 
             setLoading(false);

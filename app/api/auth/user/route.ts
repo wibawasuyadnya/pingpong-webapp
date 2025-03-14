@@ -9,12 +9,14 @@ const helper = async (request: Request) => {
   if (session.isLoggedIn && session.user) {
     return NextResponse.json({
       isLoggedIn: true,
+      picture: session.picture,
       user: await encrypt(JSON.stringify(session.user)),
     });
   }
 
   return NextResponse.json({
     isLoggedIn: false,
+    picture: '',
     user: null,
   });
 };
