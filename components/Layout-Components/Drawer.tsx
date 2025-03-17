@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
 
@@ -10,6 +10,7 @@ interface DrawerProps {
 
 export default function Drawer({ type }: DrawerProps) {
     const pathname = usePathname();
+    const [hoveredLink, setHoveredLink] = useState<string | null>(null);
 
     const links = [
         { href: "/", label: "Home", icon: "icon-[tabler--home]" },
@@ -17,19 +18,12 @@ export default function Drawer({ type }: DrawerProps) {
         { href: "#", label: "Download app", icon: "icon-[ic--outline-download]" },
     ];
 
-    const hoverAnimation = {
-        scale: 1,
-        borderLeftWidth: "3px",
-        borderLeftColor: "#BE41D2",
-    };
-
     const springTransition = {
         type: "spring",
         stiffness: 300,
         damping: 10,
         bounce: 0.4,
     };
-
 
     if (type === "login") {
         return null;
@@ -58,12 +52,19 @@ export default function Drawer({ type }: DrawerProps) {
                             return (
                                 <motion.li
                                     key={link.href}
-                                    whileHover={hoverAnimation}
+                                    onHoverStart={() => setHoveredLink(link.href)}
+                                    onHoverEnd={() => setHoveredLink(null)}
+                                    animate={{
+                                        scale: 1,
+                                        borderLeftWidth: hoveredLink === link.href ? "3px" : "0px",
+                                        borderLeftColor: hoveredLink === link.href ? "#BE41D2" : "transparent"
+                                    }}
                                     transition={springTransition}
+                                    className="overflow-hidden"
                                 >
                                     <Link
                                         href={link.href}
-                                        className={`text-lg font-semibold text-white`}
+                                        className="text-lg font-semibold text-white"
                                     >
                                         <span
                                             className={`${link.icon} size-5 py-5 ${isActive ? "text-[#BE41D2]" : "text-white"}`}
