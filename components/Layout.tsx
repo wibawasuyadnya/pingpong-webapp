@@ -24,9 +24,13 @@ export default function Layout({ children, type, session }: ComponentProps) {
                 <Header type={type} session={session} />
             </div>
             <div className="relative w-full flex flex-row h-full">
-                <div className="w-[250px]">
-                    <Drawer type={type} />
-                </div>
+                {
+                    session?.isLoggedIn && (
+                        <div className="w-[250px]">
+                            <Drawer type={type} />
+                        </div>
+                    )
+                }
                 <div className="m-0 w-full h-full">
                     <main>{children}</main>
                 </div>
