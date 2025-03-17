@@ -1,65 +1,210 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { LoginResponse } from "@/types/type";
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import "flag-icons/css/flag-icons.min.css";
 import { api } from "@/helper/external-api/apiClient";
 import getHeader from "@/lib/getHeader";
 import { useUser } from "@/lib/useUser";
-import { AxiosError } from "axios";
+import Select, { components, StylesConfig } from "react-select";
+import { Eye, EyeClosed } from "lucide-react";
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const countryCodes = require("country-codes-list");
+
+const myCountryCodesObject: Record<string, string> = countryCodes.customList(
+    "countryCode",
+    "+{countryCallingCode}"
+);
+
+const countryNames: Record<string, string> = countryCodes.customList(
+    "countryCode",
+    "{countryNameEn}"
+);
+
+interface LoginResponse {
+    data: {
+        name: string;
+        email: string;
+        phone_number: string;
+        access_token: string;
+        picture?: string;
+    };
+}
 
 type FormDataProps = {
     phone: string;
     password: string;
 };
 
-type ApiResponse = LoginResponse;
-
-export default function Section() {
-    const [formData, setFormData] = useState<FormDataProps>({
-        phone: "",
-        password: "",
-    });
+export default function LoginSection() {
     const router = useRouter();
-    const [loading, setLoading] = useState<boolean>(false);
-    const [showPassword, setShowPassword] = useState(false);
-    const [isFormValid, setIsFormValid] = useState<boolean>(false);
-    const [errors, setErrors] = useState<{ [key: string]: string[] }>({});
+    const [submit, SetSubmit] = useState<boolean>(false)
+    const [flagCode, setFlagCode] = useState<string>("gb");
+    const [showPassword, setShowPassword] = useState<boolean>(false);
+    const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [formData, setFormData] = useState<FormDataProps>({ phone: "44", password: "" });
+    const [selectedCountry, setSelectedCountry] = useState<{ value: string; label: string; phoneCode: string } | null>(null);
 
+    const isFormValid = formData.phone.trim() !== "" && formData.password.trim() !== "";
+
+    const countryOptions = Object.entries(myCountryCodesObject).map(([iso, phoneCode]) => ({
+        value: iso.toLowerCase(),
+        label: `${countryNames[iso]} (${phoneCode})`,
+        phoneCode: phoneCode.slice(1),
+    }));
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const CustomOption = (props: any) => {
+        const { data } = props;
+        return (
+            <components.Option {...props}>
+                <div className="flex items-center rounded-lg p-2">
+                    <span className={`fi fi-${data.value} mr-2`} style={{ fontSize: "1rem" }} />
+                    <span>{data.label}</span>
+                </div>
+            </components.Option>
+        );
+    };
+
+    const customStyles: StylesConfig = {
+        control: (provided) => ({
+            ...provided,
+            borderRadius: "0.5rem",
+            border: "solid #B14AE2 1px",
+            boxShadow: "none",
+        }),
+        menu: (provided) => ({
+            ...provided,
+            borderRadius: "0.5rem",
+            marginTop: "0.5rem",
+            background: "white",
+            border: "solid #B14AE2 1px",
+            height: "fit-content",
+            maxHeight: 300,
+            overflowY: "hidden",
+            padding: "5px 3px",
+            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+        }),
+        option: (provided, state) => ({
+            ...provided,
+            backgroundColor: state.isSelected
+                ? "#3b82f6"
+                : state.isFocused
+                    ? "#e2e8f0"
+                    : "white",
+            color: state.isSelected ? "white" : "black",
+            padding: "5px",
+            borderRadius: "0.25rem",
+        }),
+    };
+
+    // Reverse mapping from phone code to ISO code with prioritization
+    const getIsoFromPhoneCode = (phoneCode: string): string => {
+        let iso = "";
+        for (let len = 1; len <= 3 && len <= phoneCode.length; len++) {
+            const codeSlice = phoneCode.slice(0, len);
+            const countries = Object.entries(myCountryCodesObject).filter(
+                ([_, code]) => code === `+${codeSlice}`
+            );
+            if (countries.length > 0) {
+                if (codeSlice === "44") {
+                    const gbCountry = countries.find(([code]) => code.toLowerCase() === "gb");
+                    iso = gbCountry ? "gb" : countries[0][0].toLowerCase();
+                } else if (codeSlice === "1") {
+                    const usCountry = countries.find(([code]) => code.toLowerCase() === "us");
+                    iso = usCountry ? "us" : countries[0][0].toLowerCase();
+                } else {
+                    iso = countries[0][0].toLowerCase();
+                }
+                break;
+            }
+        }
+        return iso || "gb";
+    };
+
+    // Geolocation on mount
     useEffect(() => {
-        const isValid =
-            formData.phone.trim() !== "" &&
-            formData.password.trim() !== ""
-        setIsFormValid(isValid);
-    }, [formData]);
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(
+                async (position) => {
+                    try {
+                        const response = await fetch(
+                            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.coords.latitude}&longitude=${position.coords.longitude}&localityLanguage=en`
+                        );
+                        const data = await response.json();
+                        const isoCode = data.countryCode.toLowerCase();
+                        const phoneCodeEntry = myCountryCodesObject[isoCode.toUpperCase()];
+                        if (phoneCodeEntry) {
+                            const phoneCode = phoneCodeEntry.slice(1);
+                            setFlagCode(isoCode);
+                            setFormData((prev) => ({ ...prev, phone: phoneCode }));
+                            setSelectedCountry({
+                                value: isoCode,
+                                label: phoneCodeEntry,
+                                phoneCode,
+                            });
+                        } else {
+                            console.error(`No phone code found for ISO code: ${isoCode}`);
+                        }
+                    } catch (err) {
+                        console.error("Error determining location:", err);
+                    }
+                },
+                (err) => {
+                    console.error("Geolocation error:", err);
+                }
+            );
+        }
+    }, []);
+
+    // Update flag and dropdown based on phone input
+    useEffect(() => {
+        const cleanedPhone = formData.phone.replace(/\D/g, "");
+        if (cleanedPhone.length >= 1) {
+            const iso = getIsoFromPhoneCode(cleanedPhone);
+            if (iso) {
+                setFlagCode(iso);
+                const country = countryOptions.find((c) => c.value === iso);
+                if (country && (!selectedCountry || selectedCountry.value !== iso)) {
+                    setSelectedCountry({ value: country.value, label: country.label, phoneCode: country.phoneCode });
+                }
+            }
+        }
+    }, [formData.phone]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
-        const updatedValue = value;
-        setFormData((prevData) => ({ ...prevData, [name]: updatedValue }));
+        setFormData((prevData) => ({ ...prevData, [name]: value }));
     };
 
-    const handleTogglePassword = () => {
-        setShowPassword((prev) => !prev);
+    // Handle country selection from dropdown
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleCountrySelect = (selectedOption: any) => {
+        setSelectedCountry(selectedOption);
+        setFlagCode(selectedOption.value);
+        setFormData((prev) => ({ ...prev, phone: selectedOption.phoneCode }));
+        setIsDropdownOpen(false);
+    };
+
+    // Open dropdown on flag click
+    const openDropdown = () => {
+        setIsDropdownOpen(true);
     };
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setLoading(true);
-
+        SetSubmit(true)
         const headers = await getHeader({});
         const body = {
-            phone_number: formData.phone,
-            password: formData.password
-        }
+            phone_number: `+${formData.phone}`,
+            password: formData.password,
+        };
 
         try {
-            const res = await api<ApiResponse>({
+            const res = await api<LoginResponse>({
                 endpoint: "/api/auth/login",
                 method: "POST",
-                options: {
-                    body: body,
-                    headers: headers,
-                },
+                options: { body, headers },
             });
 
             await useUser({
@@ -67,80 +212,103 @@ export default function Section() {
                 email: res.data.email,
                 phone_number: res.data.phone_number,
                 access_token: res.data.access_token,
-                picture: res.data.picture
+                picture: res.data.picture,
             });
-
-            setLoading(false);
+            SetSubmit(false)
             router.push("/");
         } catch (error) {
-            setLoading(false);
-            if (error instanceof AxiosError) {
-                const errorMessage =
-                    error.response?.data?.message || "An unexpected error occurred";
-                if (error.response?.status === 403) {
-                    setErrors({ message: [errorMessage] });
-                } else {
-                    setErrors({ message: ["An unexpected error occurred. Please try again."] });
-                }
-            } else {
-                setErrors({
-                    message: [
-                        "A network error occurred. Please check your connection and try again.",
-                    ],
-                });
-            }
-        }
+            console.error("Login error:", error);
+            SetSubmit(false)
+            setErrorMessage("Invalid phone or password. Please try again.");
 
+        }
     };
 
     return (
-        <div className="w-1/3 ml-[-230px]">
-            <div className="mb-5">
-                <h1 className="font-bold text-[22px] leading-5 text-center text-white">Login</h1>
-            </div>
+        <div className="w-full max-w-md mx-auto p-6">
+            <h1 className="text-xl font-bold mb-10 text-center text-white">Login</h1>
             <form onSubmit={handleLogin}>
-                <div className="space-y-3">
-                    <div className="w-full">
-                        <label className="label label-text text-white"> Phone Number </label>
-                        <div className="input-group">
-                            <span className="input-group-text">
-                                <span className="icon-[emojione-v1--flag-for-united-kingdom] size-5"></span>
-                            </span>
-                            <input 
-                                type="text" 
-                                className="input grow h-10" 
-                                placeholder="phone number" 
-                                value={formData.phone}
-                                id="phone-number" 
+                {/* Phone Number Field */}
+                <div className="mb-4">
+                    <label className="block font-medium mb-1 text-white">Phone number</label>
+                    <div className="flex flex-row gap-3 items-center h-10">
+                        <div className="w-fit h-full p-1 flex items-center bg-white rounded-lg relative">
+                            <span
+                                className={`fi fi-${flagCode || "id"} ml-2 mr-2 rounded-sm shadow-sm cursor-pointer`}
+                                style={{ fontSize: "1.25rem" }}
+                                onClick={openDropdown}
+                            />
+                            {isDropdownOpen && (
+                                <div className="absolute top-full left-0 mt-2 z-10">
+                                    <Select
+                                        options={countryOptions}
+                                        value={null}
+                                        onChange={handleCountrySelect}
+                                        menuIsOpen={true}
+                                        autoFocus={true}
+                                        className="w-48"
+                                        classNamePrefix="react-select"
+                                        components={{ Option: CustomOption }}
+                                        styles={customStyles}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                        <div className="bg-white rounded-lg overflow-hidden w-full">
+                            <input
+                                type="tel"
                                 name="phone"
-                                onChange={handleInputChange} 
-                                required />
+                                placeholder="e.g. 123456789"
+                                value={formData.phone}
+                                onChange={handleInputChange}
+                                className="flex-grow p-2 outline-none w-full"
+                                required
+                            />
                         </div>
-                    </div>
-                    <div className="w-full">
-                        <label className="label label-text text-white" htmlFor="toggle-password"> Password </label>
-                        <div className="input-group">
-                            <input 
-                                id="toggle-password" 
-                                type="password" 
-                                name="password"
-                                className="input grow h-10" 
-                                placeholder="Enter password" 
-                                value={formData.password} 
-                                onChange={handleInputChange} />
-                            <span className="input-group-text">
-                                <button type="button" data-toggle-password='{ "target": "#toggle-password" }' className="block" aria-label="password toggle">
-                                    <span className="icon-[tabler--eye] text-base-content/80 password-active:block hidden size-5 flex-shrink-0"></span>
-                                    <span className="icon-[tabler--eye-off] text-base-content/80 password-active:hidden block size-5 flex-shrink-0" ></span>
-                                </button>
-                            </span>
-                        </div>
-                    </div>
-                    <div className="pt-5">
-                        <button className="text-white bg-primary w-full rounded-md py-2" type="submit">Login</button>
                     </div>
                 </div>
+
+                {/* Password Field with Show/Hide Toggle */}
+                <div className="mb-4 relative">
+                    <label className="block font-medium mb-1 text-white">Password</label>
+                    <div className="relative">
+                        <input
+                            type={showPassword ? "text" : "password"}
+                            name="password"
+                            placeholder="Enter password"
+                            value={formData.password}
+                            onChange={handleInputChange}
+                            className="w-full bg-white rounded-lg p-2 pr-10"
+                            required
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500"
+                        >
+                            {showPassword ? <EyeClosed size={20} /> : <Eye size={20} />}
+                        </button>
+                    </div>
+                </div>
+
+                {errorMessage && (
+                    <p className="text-red-500 text-sm mt-1 mb-2">
+                        {errorMessage}
+                    </p>
+                )}
+
+                {/* Submit Button with Conditional Styling */}
+                <button
+                    type="submit"
+                    disabled={!isFormValid}
+                    className={`w-full py-2 rounded-lg font-semibold transition-colors ${isFormValid
+                        ? "bg-gradient-to-b from-[#D241AA] to-[#C42BDD] text-white"
+                        : "bg-[#ACACAC] text-gray-300 cursor-not-allowed"
+                        }`}
+                >
+                    {submit ? "Loading" : "Login"}
+                </button>
             </form>
         </div>
-    )
+    );
 }

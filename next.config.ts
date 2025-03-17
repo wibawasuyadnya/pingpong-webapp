@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@material/web", "lit"],
+  transpilePackages: ["@material/web"],
   eslint: {
     ignoreDuringBuilds: false,
   },

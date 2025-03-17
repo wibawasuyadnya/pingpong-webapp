@@ -203,6 +203,7 @@ export default function VideoPlayer({
                 const srtText = await res.text();
                 const parser = new SrtParser();
                 const parsed = parser.fromSrt(srtText);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const parsedWithSeconds = parsed.map((item: any) => ({
                     startTime: toSeconds(item.startTime),
                     endTime: toSeconds(item.endTime),
@@ -336,9 +337,12 @@ export default function VideoPlayer({
     };
 
     useEffect(() => {
+        const overlayTimeout = overlayTimeoutRef.current;
+        const volumeTimeout = volumeTimeoutRef.current;
+
         return () => {
-            if (overlayTimeoutRef.current) clearTimeout(overlayTimeoutRef.current);
-            if (volumeTimeoutRef.current) clearTimeout(volumeTimeoutRef.current);
+            if (overlayTimeout) clearTimeout(overlayTimeout);
+            if (volumeTimeout) clearTimeout(volumeTimeout);
         };
     }, []);
 
@@ -388,19 +392,19 @@ export default function VideoPlayer({
 
     const getVideoContainerStyle = () => {
         return isLandscape === null
-            ? { 
-                width: "385px", 
+            ? {
+                width: "385px",
                 height: "600px",
                 margin: ""
             }
             : isLandscape
-                ? { 
-                    width: "830px", 
+                ? {
+                    width: "830px",
                     height: "500px",
                     margin: "50px 0px"
                 }
-                : { 
-                    width: "385px", 
+                : {
+                    width: "385px",
                     height: "600px",
                     margin: ""
                 };
@@ -461,7 +465,7 @@ export default function VideoPlayer({
                         value={globalVolume}
                         onChange={handleVolumeChange}
                         className="absolute w-full bottom-1 h-[4px] opacity-100 transition-opacity duration-300 cursor-grab active:cursor-grabbing"
-                        style={{ appearance: "none", background: "transparent"}}
+                        style={{ appearance: "none", background: "transparent" }}
                     />
                 </motion.div>
             </motion.div>
@@ -527,10 +531,10 @@ export default function VideoPlayer({
                     >
                         {
                             hoverTime && (
-                            <div className="text-xs bg-black/30 text-white py-1 px-2 m-1 absolute bottom-[1px] right-[1px] rounded-md font-bold">
-                                {formatTime(hoverTime)}
-                            </div>
-                        )}
+                                <div className="text-xs bg-black/30 text-white py-1 px-2 m-1 absolute bottom-[1px] right-[1px] rounded-md font-bold">
+                                    {formatTime(hoverTime)}
+                                </div>
+                            )}
                     </div>
 
 

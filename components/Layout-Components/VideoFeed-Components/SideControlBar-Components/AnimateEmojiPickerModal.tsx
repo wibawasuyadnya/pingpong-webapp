@@ -1,8 +1,8 @@
 "use client";
 import React, { useEffect, useState, MouseEvent } from "react";
 import Lottie from "react-lottie-player";
-import { setVideoOrientation } from "@/redux/slices/orientationSlice"; // If needed
-import { useAppDispatch } from "@/redux/hook"; // If needed
+// import { setVideoOrientation } from "@/redux/slices/orientationSlice"; // If needed
+// import { useAppDispatch } from "@/redux/hook"; // If needed
 
 // Example data
 const EMOJI = {
@@ -45,6 +45,7 @@ export default function AnimateEmojiPickerModal({
     onClose,
     onSelectEmoji,
 }: AnimateEmojiPickerModalProps) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [lottieMap, setLottieMap] = useState<Record<string, any>>({});
     const allCodes = React.useMemo(() => {
         const result: string[] = [];

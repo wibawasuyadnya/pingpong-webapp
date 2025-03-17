@@ -3,7 +3,6 @@ import React, {
     forwardRef,
     useImperativeHandle,
     useRef,
-    useState,
 } from "react";
 import CameraRecorder, {
     CameraRecorderHandle,
@@ -71,4 +70,5 @@ const RecorderSection = forwardRef<RecorderSectionHandle, RecorderSectionProps>(
     }
 );
 
+RecorderSection.displayName = "RecorderSection";
 export default RecorderSection;

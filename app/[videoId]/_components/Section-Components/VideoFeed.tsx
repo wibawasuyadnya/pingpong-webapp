@@ -17,6 +17,7 @@ import VideoSkeleton from "@/components/Layout-Components/VideoFeed-Components/V
 import SideControlBar from "@/components/Layout-Components/VideoFeed-Components/SideControlBar";
 import NavigationArrows from "@/components/Layout-Components/VideoFeed-Components/NavigatorArrow";
 import Link from "next/link";
+import FlippingCircleLoader from "@/components/Layout-Components/FlippingCircleLoader";
 
 interface VideoFeedProps {
     videos: Video[];
@@ -309,8 +310,8 @@ export default function VideoFeed({
             (currentVideoId && !uniqueVideos.some((video) => video.id === currentVideoId))
         ) {
             return (
-                <div className="w-full h-[700px] flex items-center justify-center">
-                    <VideoSkeleton />
+                <div className="w-full h-[650px] flex items-center justify-center">
+                    <FlippingCircleLoader size={80} color="#B14AE2" duration={2} />
                 </div>
             );
         }
@@ -322,7 +323,7 @@ export default function VideoFeed({
         return (
             <Fragment>
                 <div
-                    className={`absolute ${isLandscape === null ? "top-[-20px]" : isLandscape ? "top-1" : "top-[-20px]"
+                    className={`absolute ${isLandscape === null ? "top-[-20px]" : isLandscape ? "top-8" : "top-[-20px]"
                         } right-[-4px] z-20 flex flex-row items-end justify-center`}
                     style={{ width: "calc(100% - 205px)" }}
                 >

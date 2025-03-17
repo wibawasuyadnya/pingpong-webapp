@@ -5,7 +5,7 @@ import Drawer from "./Layout-Components/Drawer";
 import Footer from "./Layout-Components/Footer";
 import { SessionData } from "@/types/type";
 import { usePathname } from "next/navigation";
-import ConnectionSnackbar from "./Layout-Components/SnackbarConnectionStatus";
+import SnackBarConnectionStatus from "./Layout-Components/SnackbarConnectionStatus";
 
 interface ComponentProps {
     type?: string;
@@ -34,7 +34,7 @@ export default function Layout({ children, type, session }: ComponentProps) {
             <div className="z-10 w-full h-fit">
                 <Footer />
             </div>
-            <ConnectionSnackbar />
+            <SnackBarConnectionStatus />
         </div>
     );
 }

@@ -93,7 +93,7 @@ export default function VideoUploader({
 
     // Fake upload rate and progress
     const uploadRateMBps = 5;
-    let totalTimeSec = sizeMB / uploadRateMBps;
+    const totalTimeSec = sizeMB / uploadRateMBps;
     const intervalMs = 100;
     let intervalsCount = Math.ceil((totalTimeSec * 1000) / intervalMs);
     intervalsCount = Math.max(intervalsCount, 5);

@@ -17,6 +17,7 @@ import { useDispatch } from "react-redux";
 import { clearVideo } from "@/redux/slices/videoSlice";
 
 import UploadProgress from "./VideoDetail-Components/UploadProgress";
+import Image from "next/image";
 
 interface VideoDetailPreviewProps {
     video_preview: string;
@@ -337,9 +338,12 @@ export default function VideoDetailPreview({
                                 onClick={() => setShowPlayer(true)}
                             >
                                 {poster && (
-                                    <img
+                                    <Image
                                         src={poster}
                                         alt="Poster"
+                                        width={0}
+                                        height={0}
+                                        sizes="100vw"
                                         className="absolute inset-0 w-full h-full object-cover"
                                         style={{ filter: blurDataURL ? "blur(2px)" : "none" }}
                                     />

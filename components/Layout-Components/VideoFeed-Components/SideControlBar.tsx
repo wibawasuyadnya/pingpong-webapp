@@ -10,11 +10,13 @@ interface SideControlBarProps {
 }
 
 // Optionally store Lottie data in memory so repeated picks won't re-fetch
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const lottieCache: Record<string, any> = {};
 
 export default function SideControlBar({ controlsBottomClass }: SideControlBarProps) {
     const [showPicker, setShowPicker] = useState(false);
     const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [selectedData, setSelectedData] = useState<any>(null);
 
     // Controls whether the single-run animation has completed

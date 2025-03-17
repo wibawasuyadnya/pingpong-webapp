@@ -11,6 +11,7 @@ interface SectionProps {
 }
 
 /** Simple throttle utility to prevent spamming loadMore. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function throttle<T extends (...args: any[]) => void>(func: T, limit: number) {
     let inThrottle = false;
     return (...args: Parameters<T>) => {

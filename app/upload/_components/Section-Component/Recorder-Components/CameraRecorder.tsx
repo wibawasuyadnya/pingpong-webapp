@@ -277,17 +277,17 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(
             onRecordingStatusChange?.(false);
         };
 
-        const downloadRecording = () => {
-            if (recordedMp4) {
-                const extension = recordedMp4.type.includes("mp4") ? "mp4" : "webm";
-                const url = URL.createObjectURL(recordedMp4);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `camera-recording.${extension}`;
-                a.click();
-                URL.revokeObjectURL(url);
-            }
-        };
+        // const downloadRecording = () => {
+        //     if (recordedMp4) {
+        //         const extension = recordedMp4.type.includes("mp4") ? "mp4" : "webm";
+        //         const url = URL.createObjectURL(recordedMp4);
+        //         const a = document.createElement("a");
+        //         a.href = url;
+        //         a.download = `camera-recording.${extension}`;
+        //         a.click();
+        //         URL.revokeObjectURL(url);
+        //     }
+        // };
 
         const handleRecordButtonClick = () => {
             if (recordingPhase === "idle") {
@@ -410,4 +410,5 @@ const CameraRecorder = forwardRef<CameraRecorderHandle, CameraRecorderProps>(
     }
 );
 
+CameraRecorder.displayName = "CameraRecorder";
 export default CameraRecorder;

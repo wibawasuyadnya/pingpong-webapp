@@ -6,7 +6,6 @@ export function useConnectionStatus(): boolean {
     const [isOnline, setIsOnline] = useState<boolean>(true);
 
     useEffect(() => {
-        // If you want the initial state to respect the actual navigator.onLine value:
         setIsOnline(navigator.onLine);
 
         const handleOnline = () => setIsOnline(true);

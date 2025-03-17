@@ -177,6 +177,7 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
                         void startRecordingProcess();
                     }
                 }, 1000);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (error: any) {
                 onRecordingStatusChange?.(false);
                 if (error.name !== "NotAllowedError") {
@@ -294,5 +295,5 @@ const ScreenRecorder = forwardRef<ScreenRecorderHandle, CameraRecorderProps>(
         );
     }
 );
-
+ScreenRecorder.displayName = "ScreenRecorder";
 export default ScreenRecorder;

@@ -1,7 +1,6 @@
 // app/thread/[videoId]/_components/Section-Components/VideoFeed.tsx
 "use client";
 import { Video } from "@/types/type";
-import { ChevronRight } from "lucide-react";
 import { useAppSelector } from "@/redux/hook";
 import VideoPlayer from "@/components/Layout-Components/VideoFeed-Components/VideoPlayer";
 import React, { useRef, useEffect, useMemo, useCallback, useState, Fragment } from "react";
@@ -9,6 +8,7 @@ import UploadButton from "@/components/Layout-Components/VideoFeed-Components/Up
 import VideoSkeleton from "@/components/Layout-Components/VideoFeed-Components/VideoSkeleton";
 import SideControlBar from "@/components/Layout-Components/VideoFeed-Components/SideControlBar";
 import NavigationArrows from "@/components/Layout-Components/VideoFeed-Components/NavigatorArrow";
+import FlippingCircleLoader from "@/components/Layout-Components/FlippingCircleLoader";
 
 interface VideoFeedProps {
     videos: Video[];
@@ -218,8 +218,8 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
     const renderContent = () => {
         if (isInitialLoading || (currentVideoId && !uniqueVideos.some((video) => video.id === currentVideoId))) {
             return (
-                <div className="w-full h-[700px] flex items-center justify-center">
-                    <VideoSkeleton />
+                <div className="w-full h-[650px] flex items-center justify-center">
+                    <FlippingCircleLoader size={80} color="#B14AE2" duration={2} />
                 </div>
             );
         }
@@ -230,11 +230,11 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
         return (
             <Fragment>
                 <div
-                    className={`absolute ${isLandscape === null ? "top-[-20px]" : isLandscape ? "top-5" : "top-[-20px]"} right-[-4px] z-20 flex flex-row items-end justify-center`}
+                    className={`absolute ${isLandscape === null ? "top-[-20px]" : isLandscape ? "top-8" : "top-[-20px]"} right-[-4px] z-20 flex flex-row items-end justify-center`}
                     style={{ width: "calc(100% - 205px)" }}
                 >
                     <div
-                        className={`backdrop-blur-md bg-black/10 rounded-[5px] flex flex-row justify-between items-center px-3 ${isLandscape === null ? "w-[390px]" : isLandscape ? "w-[830px] py-4" : "w-[390px]"}`}
+                        className={`rounded-[5px] flex flex-row justify-between items-center px-3 ${isLandscape === null ? "w-[390px]" : isLandscape ? "w-[830px] py-4" : "w-[390px]"}`}
                     >
                         <div className="flex flex-row justify-start items-center gap-4">
                             <h1 className="font-bold text-base text-white">

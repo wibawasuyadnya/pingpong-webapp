@@ -1,34 +1,70 @@
 "use client";
-
 import React, { useEffect, useState } from "react";
 import { useConnectionStatus } from "@/hook/useConnectionStatus";
+import { AnimatePresence, motion } from "framer-motion";
+import { X } from "lucide-react";
 
-export default function ConnectionSnackbar() {
+export default function SnackBarConnectionStatus() {
     const isOnline = useConnectionStatus();
-    const [show, setShow] = useState(false);
-    const [message, setMessage] = useState("");
+    const [wasOffline, setWasOffline] = useState(false);
+    const [snackbar, setSnackbar] = useState<{
+        show: boolean;
+        message: string;
+        color: string;
+    }>({
+        show: false,
+        message: "",
+        color: "",
+    });
 
     useEffect(() => {
-        // Each time `isOnline` changes, show the snackbar
         if (!isOnline) {
-            setMessage("You are offline");
-            setShow(true);
+            setWasOffline(true);
+            setSnackbar({
+                show: true,
+                message: "No network available, check your internet.",
+                color: "#BF0E45", 
+            });
+        } else {
+            if (wasOffline) {
+                setSnackbar({
+                    show: true,
+                    message: "You're back online!",
+                    color: "#089347", 
+                });
+                setWasOffline(false); 
+            }
         }
-        
-        // Hide after 3 seconds
+
         const timer = setTimeout(() => {
-            setShow(false);
+            setSnackbar((prev) => ({ ...prev, show: false }));
         }, 3000);
 
         return () => clearTimeout(timer);
-    }, [isOnline]);
-
-    if (!show) return null;
+    }, [isOnline, wasOffline]);
 
     return (
-        <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2 
-                    bg-gray-800 text-white px-4 py-2 rounded shadow">
-            {message}
-        </div>
+        <AnimatePresence>
+            {snackbar.show && (
+                <motion.div
+                    className="fixed bottom-10 right-5 text-white px-4 py-3 rounded-full shadow-lg z-50"
+                    style={{ backgroundColor: snackbar.color }}
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 50 }}
+                    transition={{ duration: 0.3 }}
+                >
+                    <div className="flex items-center gap-2">
+                        <span className="mr-2 text-sm">{snackbar.message}</span>
+                        <button
+                            onClick={() => setSnackbar((prev) => ({ ...prev, show: false }))}
+                            className="ml-auto"
+                        >
+                            <X />
+                        </button>
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
     );
 }
