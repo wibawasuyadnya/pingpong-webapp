@@ -9,7 +9,7 @@ import { getSessionUser } from '@/lib/getUserSession';
 export default async function Post() {
   const session: SessionData = await getSessionUser();
   return (
-    <div className="bg-[url('/assets/bg-pingpong.webp')]">
+    <div className="bg-[url('/assets/bg-pingpong.webp')] bg-cover h-screen overflow-hidden">
       <Layout session={session}>
         <Section session={session}/>
       </Layout>

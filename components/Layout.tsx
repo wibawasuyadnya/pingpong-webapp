@@ -19,24 +19,27 @@ export default function Layout({ children, type, session }: ComponentProps) {
     const navClassName = `${!isNonSticky ? "" : "sticky top-0"}`;
 
     return (
-        <div className="relative">
-            <div className={`z-10 w-full h-fit ${navClassName}`}>
+        <div className="relative h-full w-full">
+            <div className={`z-10 w-full h-fit`}>
                 <Header type={type} session={session} />
             </div>
-            <div className="relative w-full flex flex-row h-full">
-                {
-                    session?.isLoggedIn && (
-                        <div className="w-[250px]">
-                            <Drawer type={type} />
-                        </div>
-                    )
-                }
-                <div className="m-0 w-full h-full">
-                    <main>{children}</main>
+            <div className="flex flex-col justify-between items-center w-full"
+                style={{ height: "calc(100vh - 60px)" }}>
+                <div className="relative w-full flex flex-row h-full">
+                    {
+                        session?.isLoggedIn && (
+                            <div className="w-[250px]">
+                                <Drawer type={type} />
+                            </div>
+                        )
+                    }
+                    <div className="m-0 w-full h-full">
+                        <main>{children}</main>
+                    </div>
                 </div>
-            </div>
-            <div className="z-10 w-full h-fit">
-                <Footer />
+                <div className="z-10 w-full h-fit">
+                    <Footer />
+                </div>
             </div>
             <SnackBarConnectionStatus />
         </div>

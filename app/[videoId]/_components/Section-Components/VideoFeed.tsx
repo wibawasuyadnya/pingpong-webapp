@@ -18,6 +18,7 @@ import SideControlBar from "@/components/Layout-Components/VideoFeed-Components/
 import NavigationArrows from "@/components/Layout-Components/VideoFeed-Components/NavigatorArrow";
 import Link from "next/link";
 import FlippingCircleLoader from "@/components/Layout-Components/FlippingCircleLoader";
+import useWindowDimensions from "@/hook/useWindowDimensions";
 
 interface VideoFeedProps {
     videos: Video[];
@@ -46,16 +47,13 @@ export default function VideoFeed({
     const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
     const scrollPositionRef = useRef<number>(0);
-
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
     const [hasUserPlayedVideo, setHasUserPlayedVideo] = useState(false);
     const [initialActiveSet, setInitialActiveSet] = useState(false);
-
-    // ✨ NEW: We'll store the next path we want to push to history here,
-    // and then handle it in a side-effect to avoid router updates mid-render.
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
     const [pendingPath, setPendingPath] = useState<string | null>(null);
+    const orientationMap = useAppSelector((state) => state.orientation?.orientationMap) ?? {};
 
-    // We watch for changes in `pendingPath` and call replaceState *after* render
     useEffect(() => {
         if (pendingPath !== null) {
             window.history.replaceState(
@@ -63,15 +61,10 @@ export default function VideoFeed({
                 "",
                 `/${pendingPath}`
             );
-            // Optionally reset pendingPath
-            // setPendingPath(null);
         }
     }, [pendingPath]);
 
-    // For orientation checks
-    const orientationMap = useAppSelector((state) => state.orientation?.orientationMap) ?? {};
 
-    // Filter out duplicates if any
     const uniqueVideos = useMemo(() => {
         const seenIds = new Set();
         return videos.filter((video) => {
@@ -85,14 +78,12 @@ export default function VideoFeed({
         ? uniqueVideos.some((video) => video.id === currentVideoId)
         : true;
 
-    // If the user navigates to /{someId} but we haven't loaded that video yet, load more
     useEffect(() => {
         if (currentVideoId && !isTargetVideoLoaded && hasMore && !loadingMore) {
             loadMore();
         }
     }, [currentVideoId, isTargetVideoLoaded, hasMore, loadingMore, loadMore]);
 
-    // Intersection Observer: preload videos when they come into view
     useEffect(() => {
         const options = { rootMargin: "0px", threshold: 0.5 };
 
@@ -140,7 +131,6 @@ export default function VideoFeed({
         []
     );
 
-    // Scroll handler to detect the "closest" video
     const handleScroll = useCallback(() => {
         const container = containerRef.current;
         if (!container) return;
@@ -172,7 +162,6 @@ export default function VideoFeed({
                 setActiveIndex(closestIndex);
                 const activeVideo = videoRefs.current[closestIndex];
                 if (activeVideo) {
-                    // Highlight the new active video
                     videoRefs.current.forEach((v) => v?.classList.remove("active-video"));
                     activeVideo.classList.add("active-video");
 
@@ -181,13 +170,11 @@ export default function VideoFeed({
                     }
                 }
 
-                // ✨ Instead of calling replaceState directly, set a pending path
                 if (uniqueVideos[closestIndex]) {
                     setPendingPath(uniqueVideos[closestIndex].id);
                 }
             }
 
-            // If near the bottom, load more
             if (hasMore) {
                 const threshold = 200;
                 if (
@@ -208,7 +195,6 @@ export default function VideoFeed({
         setPendingPath,
     ]);
 
-    // Pause all videos when tab is hidden
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.visibilityState === "hidden") {
@@ -229,7 +215,6 @@ export default function VideoFeed({
         };
     }, [activeIndex, playActiveVideo, hasUserPlayedVideo]);
 
-    // Attach our scroll listener
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
@@ -240,7 +225,6 @@ export default function VideoFeed({
         };
     }, [handleScroll]);
 
-    // Scroll to the currentVideoId if we have it
     useEffect(() => {
         if (!initialActiveSet && currentVideoId) {
             const activeIdx = uniqueVideos.findIndex((video) => video.id === currentVideoId);
@@ -252,7 +236,6 @@ export default function VideoFeed({
         }
     }, [currentVideoId, uniqueVideos, initialActiveSet]);
 
-    // Keep track of scroll position if videos array changes
     useEffect(() => {
         const container = containerRef.current;
         if (container && scrollPositionRef.current) {
@@ -260,7 +243,6 @@ export default function VideoFeed({
         }
     }, [uniqueVideos]);
 
-    // "Up" arrow button
     const handleUpClick = () => {
         if (activeIndex !== null && activeIndex > 0) {
             const newIndex = activeIndex - 1;
@@ -271,7 +253,6 @@ export default function VideoFeed({
                 if (hasUserPlayedVideo) {
                     playActiveVideo(newIndex);
                 }
-                // ✨ Set pending path for the new video
                 setPendingPath(uniqueVideos[newIndex].id);
             }
         }
@@ -288,13 +269,11 @@ export default function VideoFeed({
                 if (hasUserPlayedVideo) {
                     playActiveVideo(newIndex);
                 }
-                // ✨ Set pending path for the new video
                 setPendingPath(uniqueVideos[newIndex].id);
             }
         }
     };
 
-    // Utility to shorten thread name
     function trimThreadName(threadName: string, maxWords = 5): string {
         const words = threadName.split(/\s+/);
         return words.length > maxWords
@@ -302,9 +281,7 @@ export default function VideoFeed({
             : threadName;
     }
 
-    // Render the main content
     const renderContent = () => {
-        // If we're still loading initial data or haven't loaded the target video yet
         if (
             isInitialLoading ||
             (currentVideoId && !uniqueVideos.some((video) => video.id === currentVideoId))
@@ -316,65 +293,67 @@ export default function VideoFeed({
             );
         }
 
-        // Determine orientation for the active video
         const activeVideoId = activeIndex !== null ? uniqueVideos[activeIndex]?.id : undefined;
         const isLandscape = activeVideoId ? orientationMap[activeVideoId] ?? null : null;
+
+        const activeOrientation =
+            activeIndex !== null && uniqueVideos[activeIndex]
+                ? orientationMap[uniqueVideos[activeIndex].id] ?? null
+                : null;
+
+        const computePlayerWidth = () => {
+            const offset = 100;
+            const dynamicHeight = windowHeight - offset;
+            const ratio = activeOrientation ? 16 / 9 : 9 / 16;
+            const dynamicWidth = dynamicHeight * ratio;
+            const isLargeScreen = windowWidth >= 1280;
+            if (isLargeScreen) {
+                return activeOrientation ? "60vw" : "25vw";
+            }
+            return activeOrientation === null ? "385px" : `${dynamicWidth}px`;
+        };
 
         return (
             <Fragment>
                 <div
-                    className={`absolute ${isLandscape === null ? "top-[-20px]" : isLandscape ? "top-8" : "top-[-20px]"
-                        } right-[-4px] z-20 flex flex-row items-end justify-center`}
+                    className={`absolute ${isLandscape === null ? "top-0" : isLandscape ? "top-10" : "top-0"} right-[-5px] z-20 flex flex-row items-end justify-center`}
                     style={{ width: "calc(100% - 205px)" }}
                 >
                     <div
-                        className={`flex flex-row justify-between items-center px-3 ${isLandscape === null
-                                ? "w-[400px]"
-                                : isLandscape
-                                    ? "w-[830px]"
-                                    : "w-[400px]"
-                            }`}
+                        className="absolute z-10 flex flex-row justify-center items-center"
+                        style={{ width: computePlayerWidth() }}
                     >
-                        <div className="flex flex-row justify-start items-center gap-4">
-                            {/* This Link won't cause the error, because it only changes the route on user click */}
-                            <Link
-                                href={`/thread/${activeIndex !== null && uniqueVideos[activeIndex]
-                                        ? uniqueVideos[activeIndex].id
-                                        : ""
-                                    }`}
-                                className="cursor-pointer"
-                            >
-                                <h1 className="font-bold text-base text-white">
-                                    {activeIndex !== null && uniqueVideos[activeIndex]
-                                        ? trimThreadName(uniqueVideos[activeIndex].thread_name)
-                                        : "Loading..."}
-                                </h1>
-                            </Link>
-                            <ChevronRight size={24} className="text-white" />
-                        </div>
-                        <div className="flex flex-row justify-start items-center gap-4">
-                            <h2 className="font-bold text-base text-white">Feed</h2>
-                            <span className="icon-[material-symbols--circle] text-[#B14AE2] text-sm"></span>
+                        <div className="flex flex-row justify-between items-center px-3 w-full">
+                            <div className="flex flex-row justify-start items-center gap-4">
+                                <Link href={`/thread/${activeIndex !== null ? uniqueVideos[activeIndex].id : ""}`} className="cursor-pointer">
+                                    <h1 className="font-bold text-base text-white">
+                                        {activeIndex !== null ? trimThreadName(uniqueVideos[activeIndex].thread_name) : "Loading..."}
+                                    </h1>
+                                </Link>
+                                <ChevronRight size={24} className="text-white" />
+                            </div>
+                            <div className="flex flex-row justify-start items-center gap-4">
+                                <h2 className="font-bold text-base text-white">Feed</h2>
+                                <span className="icon-[material-symbols--circle] text-[#B14AE2] text-sm"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div
                     ref={containerRef}
-                    className="h-[650px] overflow-y-scroll snap-y snap-mandatory no-scrollbar relative"
-                    style={{ overscrollBehavior: "contain" }}
+                    className="overflow-y-scroll snap-y snap-mandatory no-scrollbar relative"
+                    style={{ overscrollBehavior: "contain", height: "calc(100vh - 130px)" }}
                 >
                     {uniqueVideos.map((video, index) => {
-                        const containerPaddingClass = `pt-5 px-5`;
-                        const controlsBottomClass = `-right-10 ${isLandscape === null ? "bottom-0" : isLandscape ? "bottom-12" : "bottom-0"
-                            }`;
+                        const controlsBottomClass = `-right-16 bottom-0`;
                         return (
                             <div
                                 key={`${video.id}-${index}`}
-                                className="relative min-h-[600px] w-full flex items-center justify-center snap-start"
-                                style={{ scrollSnapStop: "always" }}
+                                className="relative w-full flex items-center justify-center snap-start gap-3"
+                                style={{ scrollSnapStop: "always", height: "calc(100vh - 155px)" }}
                             >
-                                <div className={`relative ${containerPaddingClass}`}>
+                                <div className={`relative`}>
                                     <VideoPlayer
                                         video={{
                                             id: video.id,

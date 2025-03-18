@@ -9,6 +9,7 @@ import VideoSkeleton from "@/components/Layout-Components/VideoFeed-Components/V
 import SideControlBar from "@/components/Layout-Components/VideoFeed-Components/SideControlBar";
 import NavigationArrows from "@/components/Layout-Components/VideoFeed-Components/NavigatorArrow";
 import FlippingCircleLoader from "@/components/Layout-Components/FlippingCircleLoader";
+import useWindowDimensions from "@/hook/useWindowDimensions";
 
 interface VideoFeedProps {
     videos: Video[];
@@ -28,7 +29,8 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
     const [hasUserPlayedVideo, setHasUserPlayedVideo] = useState(false);
     const [initialActiveSet, setInitialActiveSet] = useState(false);
     const orientationMap = useAppSelector((state) => state.orientation?.orientationMap) ?? {};
-
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+    
     const uniqueVideos = useMemo(() => {
         const seenIds = new Set();
         return videos.filter((video) => {
@@ -227,39 +229,56 @@ export default function VideoFeed({ videos, loadMore, hasMore, loadingMore, isIn
         const activeVideoId = activeIndex !== null ? uniqueVideos[activeIndex]?.id : undefined;
         const isLandscape = activeVideoId ? orientationMap[activeVideoId] ?? null : null;
 
+        const activeOrientation =
+            activeIndex !== null && uniqueVideos[activeIndex]
+                ? orientationMap[uniqueVideos[activeIndex].id] ?? null
+                : null;
+
+        // Compute the dynamic player width:
+        const computePlayerWidth = () => {
+            const offset = 100;
+            const dynamicHeight = windowHeight - offset;
+            const ratio = activeOrientation ? 16 / 9 : 9 / 16;
+            const dynamicWidth = dynamicHeight * ratio;
+            const isLargeScreen = windowWidth >= 1280;
+            if (isLargeScreen) {
+                return activeOrientation ? "50vw" : "25vw";
+            }
+            return activeOrientation === null ? "385px" : `${dynamicWidth}px`;
+        };
+
         return (
             <Fragment>
                 <div
-                    className={`absolute ${isLandscape === null ? "top-[-20px]" : isLandscape ? "top-8" : "top-[-20px]"} right-[-4px] z-20 flex flex-row items-end justify-center`}
+                    className={`absolute ${isLandscape === null ? "top-0" : isLandscape ? "top-10" : "top-0"} right-[-5px] z-20 flex flex-row items-end justify-center`}
                     style={{ width: "calc(100% - 205px)" }}
                 >
                     <div
-                        className={`rounded-[5px] flex flex-row justify-between items-center px-3 ${isLandscape === null ? "w-[390px]" : isLandscape ? "w-[830px] py-4" : "w-[390px]"}`}
+                        className="absolute z-10 flex flex-row justify-center items-center"
+                        style={{ width: computePlayerWidth() }}
                     >
-                        <div className="flex flex-row justify-start items-center gap-4">
+                        <div className="flex flex-row justify-between items-center px-3 w-full">
                             <h1 className="font-bold text-base text-white">
-                                {activeIndex !== null && uniqueVideos[activeIndex]
-                                    ? trimThreadName(uniqueVideos[activeIndex].thread_name)
-                                    : "Loading..."}
+                                {activeIndex !== null ? trimThreadName(uniqueVideos[activeIndex].thread_name) : "Loading..."}
                             </h1>
                         </div>
                     </div>
                 </div>
+
                 <div
                     ref={containerRef}
-                    className="h-[650px] overflow-y-scroll snap-y snap-mandatory no-scrollbar relative"
-                    style={{ overscrollBehavior: "contain" }}
+                    className="overflow-y-scroll snap-y snap-mandatory no-scrollbar relative"
+                    style={{ overscrollBehavior: "contain", height: "calc(100vh - 150px)" }}
                 >
                     {uniqueVideos.map((video, index) => {
-                        const containerPaddingClass = "pt-5 px-5";
-                        const controlsBottomClass = `-right-10 ${isLandscape === null ? "bottom-0" : isLandscape ? "bottom-12" : "bottom-0"}`;
+                        const controlsBottomClass = `-right-16 bottom-0`;
                         return (
                             <div
                                 key={`${video.id}-${index}`}
-                                className={`relative min-h-[600px] w-full flex items-center justify-center snap-start`}
-                                style={{ scrollSnapStop: "always" }}
+                                className={`relative w-full flex items-center justify-center snap-start`}
+                                style={{ scrollSnapStop: "always", height: "calc(100vh - 150px)" }}
                             >
-                                <div className={`relative ${containerPaddingClass}`}>
+                                <div className={`relative`}>
                                     <VideoPlayer
                                         video={{
                                             id: video.id,

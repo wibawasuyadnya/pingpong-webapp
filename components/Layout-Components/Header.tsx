@@ -21,7 +21,7 @@ export default function Header({
 
     return (
         <Fragment>
-            <nav className="navbar bg-transparent w-full">
+            <nav className="navbar bg-transparent w-full z-[999]">
                 <div className="flex flex-1 items-center">
                     <Image
                         src="/assets/pingpong-logo.webp"
@@ -60,7 +60,6 @@ export default function Header({
                 )}
             </nav>
 
-            {/* Place the LogOutModal in the DOM, referencing modalRef */}
             <LogOutModal ref={modalRef} />
         </Fragment>
     );

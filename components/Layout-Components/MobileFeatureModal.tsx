@@ -28,7 +28,7 @@ export default function MobileFeatureModal({ onClose }: MobileFeatureModalProps)
 
     return (
         <div
-            className="fixed inset-0 z-20 flex items-center justify-end bg-black bg-opacity-50 w-full"
+            className="fixed inset-0 z-20 flex items-center justify-end bg-black bg-opacity-50 w-full h-screen"
             onClick={onClose}>
             <AnimatePresence>
                 <motion.div

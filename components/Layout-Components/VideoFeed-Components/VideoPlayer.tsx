@@ -16,6 +16,7 @@ import Image from "next/image";
 import { useAppDispatch, useAppSelector } from "@/redux/hook";
 import { setVolume, toggleMute } from "@/redux/slices/volumeSlice";
 import { setVideoOrientation } from "@/redux/slices/orientationSlice";
+import useWindowDimensions from "@/hook/useWindowDimensions";
 
 interface VideoData {
     id: string;
@@ -69,6 +70,7 @@ export default function VideoPlayer({
     const [isBuffering, setIsBuffering] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false)
     const isHlsSource = video.source.includes(".m3u8");
+    const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
     const toSeconds = (timeStr: string) => {
         const parts = timeStr.split(/[:,]/).map(Number);
@@ -391,23 +393,35 @@ export default function VideoPlayer({
     else if (globalVolume > 0.5) volumeIcon = <Volume2 size={25} color="white" />;
 
     const getVideoContainerStyle = () => {
-        return isLandscape === null
-            ? {
-                width: "385px",
-                height: "600px",
-                margin: ""
-            }
-            : isLandscape
-                ? {
-                    width: "830px",
-                    height: "500px",
-                    margin: "50px 0px"
-                }
-                : {
-                    width: "385px",
-                    height: "600px",
-                    margin: ""
-                };
+      const offset = 100; 
+      const dynamicHeight = windowHeight - offset;
+      const ratio = isLandscape ? 16 / 9 : 9 / 16;
+      const dynamicWidth = dynamicHeight * ratio;
+      const isLargeScreen = windowWidth >= 1280;
+  
+      if (isLargeScreen) {
+        return {
+          width: isLandscape ? "60vw" : "25vw",
+          height: isLandscape ? "65vh" : "77vh",
+        };
+      }
+  
+      if (isLandscape === null) {
+        return {
+          width: "385px",
+          height: "600px",
+        };
+      } else if (isLandscape) {
+        return {
+          width: `${dynamicWidth}px`,
+          height: `${dynamicHeight}px`,
+        };
+      } else {
+        return {
+          width: `${dynamicWidth}px`,
+          height: `${dynamicHeight}px`,
+        };
+      }
     };
 
     return (
